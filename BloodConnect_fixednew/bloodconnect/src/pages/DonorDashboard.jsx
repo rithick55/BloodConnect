@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function DonorDashboard() {
   const navigate = useNavigate();
 
@@ -52,7 +54,7 @@ function DonorDashboard() {
 
       try {
         const response = await fetch(
-          "http://localhost:8090/api/admin/donors"
+          `${API_URL}/admin/donors`
         );
 
         if (!response.ok) {
@@ -172,7 +174,7 @@ function DonorDashboard() {
 
     try {
       const response = await fetch(
-        `http://localhost:8090/api/donors/${donor.id}/availability?available=${newAvailability}`,
+        `${API_URL}/donors/${donor.id}/availability?available=${newAvailability}`,
         {
           method: "PUT",
         }

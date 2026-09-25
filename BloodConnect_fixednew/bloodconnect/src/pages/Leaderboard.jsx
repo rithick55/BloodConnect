@@ -14,7 +14,7 @@ function Leaderboard() {
         setError("");
 
         const response = await fetch(
-          "http://localhost:8090/api/donors/leaderboard"
+          `${API_URL}/donors/leaderboard`
         );
 
         const data = await response.json();

@@ -3,6 +3,8 @@ import { Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function AdminLogin() {
   const navigate = useNavigate();
 
@@ -11,64 +13,64 @@ function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
-const handleLogin = async (e) => {
-  e.preventDefault();
-  setError("");
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError("");
 
-  if (!email.trim()) {
-    setError("Please enter your email.");
-    return;
-  }
-
-  if (!password.trim()) {
-    setError("Please enter your password.");
-    return;
-  }
-
-  try {
-    const response = await fetch(
-      "http://localhost:8090/api/auth/login",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          identifier: email,
-          password: password,
-          role: "ADMIN",
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(
-        data.message || "Invalid admin email or password."
-      );
-    }
-
-    if (data.role !== "ADMIN") {
-      setError("This account is not an admin account.");
+    if (!email.trim()) {
+      setError("Please enter your email.");
       return;
     }
 
-    // Save logged-in admin
-    localStorage.setItem(
-      "bloodconnectAdmin",
-      JSON.stringify(data)
-    );
+    if (!password.trim()) {
+      setError("Please enter your password.");
+      return;
+    }
 
-    navigate("/admin-dashboard", { replace: true });
+    try {
+      const response = await fetch(
+        `${API_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            identifier: email,
+            password: password,
+            role: "ADMIN",
+          }),
+        }
+      );
 
-  } catch (error) {
-    console.error("Admin login failed:", error);
-    setError(
-      error.message || "Unable to login. Please try again."
-    );
-  }
-};
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Invalid admin email or password."
+        );
+      }
+
+      if (data.role !== "ADMIN") {
+        setError("This account is not an admin account.");
+        return;
+      }
+
+      // Save logged-in admin
+      localStorage.setItem(
+        "bloodconnectAdmin",
+        JSON.stringify(data)
+      );
+
+      navigate("/admin-dashboard", { replace: true });
+
+    } catch (error) {
+      console.error("Admin login failed:", error);
+      setError(
+        error.message || "Unable to login. Please try again."
+      );
+    }
+  };
 
   return (
     <main className="auth-page">

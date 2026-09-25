@@ -3,6 +3,8 @@ import { Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function DonorLogin() {
   const navigate = useNavigate();
   const { loginWithBackendUser } = useApp();
@@ -24,7 +26,7 @@ function DonorLogin() {
     try {
       // Send login request to API Gateway
       const response = await fetch(
-        "http://localhost:8090/api/auth/login",
+        `${API_URL}/auth/login`,
         {
           method: "POST",
           headers: {

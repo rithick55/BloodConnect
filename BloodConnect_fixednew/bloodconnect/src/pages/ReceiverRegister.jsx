@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+const API_URL = import.meta.env.VITE_API_URL;
 
 function ReceiverRegister() {
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ function ReceiverRegister() {
     try {
       // Send registration request to API Gateway
       const response = await fetch(
-        "http://localhost:8090/api/auth/register",
+        `${API_URL}/auth/register`,
         {
           method: "POST",
           headers: {

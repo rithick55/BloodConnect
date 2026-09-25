@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function ForgotPassword() {
   const navigate = useNavigate();
 
@@ -56,7 +58,7 @@ function ForgotPassword() {
 
     try {
       const response = await fetch(
-        "http://localhost:8090/api/auth/forgot-password",
+        `${API_URL}/auth/forgot-password`,
         {
           method: "POST",
           headers: {
@@ -114,7 +116,7 @@ function ForgotPassword() {
 
     try {
       const response = await fetch(
-        "http://localhost:8090/api/auth/verify-otp",
+        `${API_URL}/auth/verify-otp`,
         {
           method: "POST",
           headers: {
@@ -176,7 +178,7 @@ function ForgotPassword() {
 
     try {
       const response = await fetch(
-        "http://localhost:8090/api/auth/reset-password",
+        `${API_URL}/auth/reset-password`,
         {
           method: "POST",
           headers: {

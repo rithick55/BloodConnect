@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function AdminDashboard() {
   const navigate = useNavigate();
   const { logout } = useApp();
@@ -22,7 +24,7 @@ function AdminDashboard() {
   const loadRecentRequests = async () => {
     try {
       const response = await fetch(
-        "http://localhost:8090/api/admin/requests"
+        `${API_URL}/admin/requests`
       );
 
       const data = await response.json();
@@ -49,46 +51,46 @@ function AdminDashboard() {
       );
     }
   };
-  
+
   const loadStats = async () => {
-  try {
-    setLoading(true);
-    setError("");
+    try {
+      setLoading(true);
+      setError("");
 
-    const response = await fetch(
-      "http://localhost:8090/api/admin/stats"
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(
-        data.message || "Unable to load admin statistics."
+      const response = await fetch(
+        `${API_URL}/admin/stats`
       );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Unable to load admin statistics."
+        );
+      }
+
+      setStats(data);
+    } catch (error) {
+      console.error("Unable to load admin statistics:", error);
+      setError(
+        error.message || "Unable to load admin statistics."
+      );
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setStats(data);
-  } catch (error) {
-    console.error("Unable to load admin statistics:", error);
-    setError(
-      error.message || "Unable to load admin statistics."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  useEffect(() => {
+    loadStats();
+    loadRecentRequests();
+  }, []);
 
-useEffect(() => {
-  loadStats();
-  loadRecentRequests();
-}, []);
-
-const handleRefresh = async () => {
-  await Promise.all([
-    loadStats(),
-    loadRecentRequests(),
-  ]);
-};
+  const handleRefresh = async () => {
+    await Promise.all([
+      loadStats(),
+      loadRecentRequests(),
+    ]);
+  };
 
   const dashboardStats = [
     {
@@ -146,22 +148,22 @@ const handleRefresh = async () => {
 
         <div className="admin-header-actions">
 
-  <button
-    className="admin-refresh"
-    onClick={handleRefresh}
-    disabled={loading}
-  >
-    🔄 {loading ? "Refreshing..." : "Refresh"}
-  </button>
+          <button
+            className="admin-refresh"
+            onClick={handleRefresh}
+            disabled={loading}
+          >
+            🔄 {loading ? "Refreshing..." : "Refresh"}
+          </button>
 
-  <button
-    className="admin-logout"
-    onClick={handleLogout}
-  >
-    🚪 Logout
-  </button>
+          <button
+            className="admin-logout"
+            onClick={handleLogout}
+          >
+            🚪 Logout
+          </button>
 
-</div>
+        </div>
       </header>
 
 

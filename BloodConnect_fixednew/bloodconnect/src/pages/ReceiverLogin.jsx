@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+const API_URL = import.meta.env.VITE_API_URL;
 
 function ReceiverLogin() {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ function ReceiverLogin() {
     try {
       // Send login request to API Gateway
       const response = await fetch(
-        "http://localhost:8090/api/auth/login",
+        `${API_URL}/auth/login`,
         {
           method: "POST",
           headers: {
@@ -47,12 +48,19 @@ function ReceiverLogin() {
 
       const user = JSON.parse(data);
 
+      // Save JWT token
+      if (user.token) {
+        localStorage.setItem(
+          "bloodconnect_token",
+          user.token
+        );
+      }
+
       // Save logged-in user
       localStorage.setItem(
         "bloodconnect_user",
         JSON.stringify(user)
       );
-
       loginWithBackendUser(user);
 
       // Go to receiver dashboard

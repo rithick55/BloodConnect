@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function AdminBloodRequests() {
   const navigate = useNavigate();
 
@@ -23,7 +25,7 @@ function AdminBloodRequests() {
         setError("");
 
         const response = await fetch(
-          "http://localhost:8090/api/admin/requests"
+          `${API_URL}/admin/requests`
         );
 
         const data = await response.json();
@@ -130,7 +132,7 @@ function AdminBloodRequests() {
 
     try {
       const response = await fetch(
-        `http://localhost:8090/api/requests/${requestId}/cancel`,
+        `${API_URL}/requests/${requestId}/cancel`,
         {
           method: "PUT",
         }

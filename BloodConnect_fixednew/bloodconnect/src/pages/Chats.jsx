@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function Chats() {
   const navigate = useNavigate();
   const { currentUser } = useApp();
@@ -20,10 +22,10 @@ function Chats() {
       try {
         setLoading(true);
 
-        const endpoint =
-          currentUser.role === "receiver"
-            ? `http://localhost:8090/api/requests/receiver/${currentUser.id}`
-            : `http://localhost:8090/api/requests/donor/${currentUser.id}`;
+       const endpoint =
+  currentUser.role === "receiver"
+    ? `${API_URL}/requests/receiver/${currentUser.id}`
+    : `${API_URL}/requests/donor/${currentUser.id}`;
 
         const response = await fetch(endpoint);
 
@@ -58,7 +60,7 @@ function Chats() {
       setCompletingId(requestId);
 
       const response = await fetch(
-        `http://localhost:8090/api/requests/${requestId}/complete?receiverId=${currentUser.id}`,
+        `${API_URL}/requests/${requestId}/complete?receiverId=${currentUser.id}`,
         {
           method: "PUT",
         }

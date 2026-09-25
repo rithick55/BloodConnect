@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { indiaLocations } from "../data/indiaLocations";
 import { useApp } from "../context/AppContext";
+const API_URL = import.meta.env.VITE_API_URL;
 
 function ReceiverProfile() {
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ function ReceiverProfile() {
 
       try {
         const response = await fetch(
-          `http://localhost:8090/api/requests/receiver/${user.id}`
+          `${API_URL}/requests/receiver/${user.id}`
         );
 
         if (!response.ok) {
@@ -121,7 +122,7 @@ function ReceiverProfile() {
   const saveProfile = async () => {
     try {
       const response = await fetch(
-        `http://localhost:8090/api/auth/profile/${user.id}`,
+        `${API_URL}/auth/profile/${user.id}`,
         {
           method: "PUT",
           headers: {

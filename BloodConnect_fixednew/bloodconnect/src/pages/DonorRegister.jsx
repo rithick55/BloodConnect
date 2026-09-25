@@ -57,7 +57,7 @@ function DonorRegister() {
     try {
       // Send donor registration to API Gateway
       const response = await fetch(
-        "http://localhost:8090/api/auth/register",
+        `${API_URL}/auth/register`,
         {
           method: "POST",
           headers: {

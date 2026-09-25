@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function AdminReceivers() {
   const navigate = useNavigate();
 
@@ -22,8 +24,8 @@ function AdminReceivers() {
 
         const [receiversResponse, requestsResponse] =
           await Promise.all([
-            fetch("http://localhost:8090/api/admin/receivers"),
-            fetch("http://localhost:8090/api/admin/requests"),
+            fetch(`${API_URL}/admin/receivers`),
+            fetch(`${API_URL}/admin/requests`),
           ]);
 
         const receiversData = await receiversResponse.json();

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const API_URL = import.meta.env.VITE_API_URL;
 
 function AdminDonors() {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ function AdminDonors() {
         setError("");
 
         const response = await fetch(
-          "http://localhost:8090/api/admin/donors"
+          `${API_URL}/admin/donors`
         );
 
         const data = await response.json();
@@ -75,7 +76,7 @@ function AdminDonors() {
       const newAvailability = !currentAvailability;
 
       const response = await fetch(
-        `http://localhost:8090/api/admin/donors/${id}/availability?available=${newAvailability}`,
+        `${API_URL}/admin/donors/${id}/availability?available=${newAvailability}`,
         {
           method: "PUT",
         }

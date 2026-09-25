@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+const API_URL = import.meta.env.VITE_API_URL;
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -11,9 +12,9 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
@@ -76,112 +77,112 @@ function NearbyDonors() {
 
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [donors, setDonors] = useState([]);
-const [donorLoading, setDonorLoading] = useState(false);
-const [donorError, setDonorError] = useState("");
-const [loadedRequest, setLoadedRequest] = useState(null);
+  const [donorLoading, setDonorLoading] = useState(false);
+  const [donorError, setDonorError] = useState("");
+  const [loadedRequest, setLoadedRequest] = useState(null);
 
   const requestId = location.state?.requestId;
 
-const contextRequest = requestId
-  ? requests.find(
+  const contextRequest = requestId
+    ? requests.find(
       (item) => String(item.id) === String(requestId)
     )
-  : null;
+    : null;
 
-const request = contextRequest || loadedRequest;
+  const request = contextRequest || loadedRequest;
 
-useEffect(() => {
-  if (!requestId || contextRequest || !currentUser?.id) {
-    return;
-  }
+  useEffect(() => {
+    if (!requestId || contextRequest || !currentUser?.id) {
+      return;
+    }
 
-  const loadRequest = async () => {
-    try {
-      const response = await fetch(
-        `http://localhost:8090/api/requests/receiver/${currentUser.id}`
-      );
-
-      const text = await response.text();
-
-      let data;
-
+    const loadRequest = async () => {
       try {
-        data = JSON.parse(text);
-      } catch {
-        data = [];
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Unable to load blood request."
+        const response = await fetch(
+          `${API_URL}/requests/receiver/${currentUser.id}`
         );
-      }
 
-      const foundRequest = Array.isArray(data)
-        ? data.find(
+        const text = await response.text();
+
+        let data;
+
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = [];
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Unable to load blood request."
+          );
+        }
+
+        const foundRequest = Array.isArray(data)
+          ? data.find(
             (item) =>
               String(item.id) === String(requestId)
           )
-        : null;
+          : null;
 
-      if (foundRequest) {
-        setLoadedRequest(foundRequest);
-      }
-    } catch (error) {
-      console.error(
-        "Unable to load blood request:",
-        error
-      );
-    }
-  };
-
-  loadRequest();
-}, [requestId, contextRequest, currentUser]);
-
-useEffect(() => {
-  if (!request) return;
-
-  const fetchDonors = async () => {
-    setDonorLoading(true);
-    setDonorError("");
-
-    try {
-      const response = await fetch(
-        `http://localhost:8090/api/donors?bloodGroup=${encodeURIComponent(
-          request.bloodGroup
-        )}`
-      );
-
-      const text = await response.text();
-
-      let data;
-
-      try {
-        data = JSON.parse(text);
-      } catch {
-        data = [];
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Unable to load donors."
+        if (foundRequest) {
+          setLoadedRequest(foundRequest);
+        }
+      } catch (error) {
+        console.error(
+          "Unable to load blood request:",
+          error
         );
       }
+    };
 
-      setDonors(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Unable to load donors:", error);
-      setDonorError(
-        error.message || "Unable to connect to donor service."
-      );
-      setDonors([]);
-    } finally {
-      setDonorLoading(false);
-    }
-  };
+    loadRequest();
+  }, [requestId, contextRequest, currentUser]);
 
-  fetchDonors();
-}, [request]);
+  useEffect(() => {
+    if (!request) return;
+
+    const fetchDonors = async () => {
+      setDonorLoading(true);
+      setDonorError("");
+
+      try {
+        const response = await fetch(
+          `${API_URL}/donors?bloodGroup=${encodeURIComponent(
+            request.bloodGroup
+          )}`
+        );
+
+        const text = await response.text();
+
+        let data;
+
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = [];
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Unable to load donors."
+          );
+        }
+
+        setDonors(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Unable to load donors:", error);
+        setDonorError(
+          error.message || "Unable to connect to donor service."
+        );
+        setDonors([]);
+      } finally {
+        setDonorLoading(false);
+      }
+    };
+
+    fetchDonors();
+  }, [request]);
 
   const filteredDonors = useMemo(() => {
     if (!request) return [];
@@ -189,35 +190,35 @@ useEffect(() => {
     const requestLocation =
       request.latitude != null && request.longitude != null
         ? {
-            latitude: request.latitude,
-            longitude: request.longitude,
-          }
+          latitude: request.latitude,
+          longitude: request.longitude,
+        }
         : getDistrictCoordinates(request.district);
 
     if (!requestLocation) return [];
 
     return donors
-  .filter(
-    (donor) =>
-      donor.bloodGroup === request.bloodGroup &&
-      donor.state === request.state
-  )
+      .filter(
+        (donor) =>
+          donor.bloodGroup === request.bloodGroup &&
+          donor.state === request.state
+      )
       .map((donor) => {
         const donorLocation =
           donor.latitude != null && donor.longitude != null
             ? {
-                latitude: donor.latitude,
-                longitude: donor.longitude,
-              }
+              latitude: donor.latitude,
+              longitude: donor.longitude,
+            }
             : getDistrictCoordinates(donor.district);
 
         const distance = donorLocation
           ? calculateDistance(
-              requestLocation.latitude,
-              requestLocation.longitude,
-              donorLocation.latitude,
-              donorLocation.longitude
-            )
+            requestLocation.latitude,
+            requestLocation.longitude,
+            donorLocation.latitude,
+            donorLocation.longitude
+          )
           : null;
 
         return {
@@ -354,149 +355,149 @@ useEffect(() => {
 
       </div>
 
-          {donorLoading && (
-  <div className="no-donors">
-    <div>🩸</div>
-    <h2>Finding donors...</h2>
-    <p>Please wait while we search for matching donors.</p>
-  </div>
-)}
+      {donorLoading && (
+        <div className="no-donors">
+          <div>🩸</div>
+          <h2>Finding donors...</h2>
+          <p>Please wait while we search for matching donors.</p>
+        </div>
+      )}
 
-{donorError && (
-  <div className="no-donors">
-    <div>⚠️</div>
-    <h2>Unable to load donors</h2>
-    <p>{donorError}</p>
-  </div>
-)}
+      {donorError && (
+        <div className="no-donors">
+          <div>⚠️</div>
+          <h2>Unable to load donors</h2>
+          <p>{donorError}</p>
+        </div>
+      )}
 
       {!donorLoading && !donorError && (
-  <section className="donor-list">
+        <section className="donor-list">
 
-        {filteredDonors.map((donor) => (
+          {filteredDonors.map((donor) => (
 
-          <article
-            className="donor-card"
-            key={donor.id}
-          >
+            <article
+              className="donor-card"
+              key={donor.id}
+            >
 
-            <div className="donor-main">
+              <div className="donor-main">
 
-              <div className="donor-avatar">
-                {donor.name.charAt(0)}
-              </div>
+                <div className="donor-avatar">
+                  {donor.name.charAt(0)}
+                </div>
 
-              <div className="donor-info">
+                <div className="donor-info">
 
-                <div className="donor-name-row">
+                  <div className="donor-name-row">
 
-                  <h2>
-                    {donor.name}
-                  </h2>
+                    <h2>
+                      {donor.name}
+                    </h2>
 
-                  <span
-                    className={
-                      donor.available
-                        ? "availability available"
-                        : "availability unavailable"
-                    }
-                  >
-                    {donor.available
-                      ? "Available"
-                      : "Unavailable"}
+                    <span
+                      className={
+                        donor.available
+                          ? "availability available"
+                          : "availability unavailable"
+                      }
+                    >
+                      {donor.available
+                        ? "Available"
+                        : "Unavailable"}
+                    </span>
+
+                  </div>
+
+                  <p>
+                    {donor.district}
+                  </p>
+
+                  <span className="donor-distance">
+                    📍{" "}
+                    {donor.distance != null
+                      ? `${donor.distance.toFixed(1)} km away`
+                      : "Location unavailable"}
                   </span>
 
                 </div>
 
-                <p>
-                  {donor.district}
-                </p>
+              </div>
 
-                <span className="donor-distance">
-                  📍{" "}
-                  {donor.distance != null
-                    ? `${donor.distance.toFixed(1)} km away`
-                    : "Location unavailable"}
-                </span>
+              <div className="blood-group">
+                {donor.bloodGroup}
+              </div>
+
+              <div className="donor-actions">
+
+                <button
+                  className="call-button"
+                  disabled={!donor.available}
+                  onClick={() =>
+                    navigate("/call-donor", {
+                      state: {
+                        donor,
+                        requestId: request.id,
+                      },
+                    })
+                  }
+                >
+                  ☎ Call
+                </button>
+
+                <button
+                  className="chat-button"
+                  disabled={!donor.available}
+                  onClick={() => {
+                    openChat(request.id, donor.id);
+
+                    navigate("/chat", {
+                      state: {
+                        requestId: request.id,
+                        donorId: donor.id,
+                        mode: "receiver",
+                      },
+                    });
+                  }}
+                >
+                  💬 Chat
+                </button>
 
               </div>
 
-            </div>
+            </article>
 
-            <div className="blood-group">
-              {donor.bloodGroup}
-            </div>
+          ))}
 
-            <div className="donor-actions">
+          {filteredDonors.length === 0 && (
+
+            <div className="no-donors">
+
+              <div>🩸</div>
+
+              <h2>
+                No matching donors nearby
+              </h2>
+
+              <p>
+                We couldn't find a donor matching this
+                blood group and location.
+              </p>
 
               <button
-                className="call-button"
-                disabled={!donor.available}
+                className="find-donors-button"
                 onClick={() =>
-                  navigate("/call-donor", {
-                    state: {
-                      donor,
-                      requestId: request.id,
-                    },
-                  })
+                  navigate("/receiver-dashboard")
                 }
               >
-                ☎ Call
-              </button>
-
-              <button
-                className="chat-button"
-                disabled={!donor.available}
-                onClick={() => {
-                  openChat(request.id, donor.id);
-
-                  navigate("/chat", {
-                    state: {
-                      requestId: request.id,
-                      donorId: donor.id,
-                      mode: "receiver",
-                    },
-                  });
-                }}
-              >
-                💬 Chat
+                Change Search
               </button>
 
             </div>
 
-          </article>
+          )}
 
-        ))}
-
-        {filteredDonors.length === 0 && (
-
-          <div className="no-donors">
-
-            <div>🩸</div>
-
-            <h2>
-              No matching donors nearby
-            </h2>
-
-            <p>
-              We couldn't find a donor matching this
-              blood group and location.
-            </p>
-
-            <button
-              className="find-donors-button"
-              onClick={() =>
-                navigate("/receiver-dashboard")
-              }
-            >
-              Change Search
-            </button>
-
-          </div>
-
-        )}
-
-      </section> )}
+        </section>)}
 
     </main>
   );

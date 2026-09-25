@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function Chat() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,8 +34,8 @@ function Chat() {
 
         const endpoint =
           currentUser.role === "receiver"
-            ? `http://localhost:8090/api/requests/receiver/${currentUser.id}`
-            : `http://localhost:8090/api/requests/donor/${currentUser.id}`;
+            ? `${API_URL}/requests/receiver/${currentUser.id}`
+            : `${API_URL}/requests/donor/${currentUser.id}`;
 
         const response = await fetch(endpoint);
 
@@ -60,7 +62,7 @@ function Chat() {
         ) {
           try {
             const donorResponse = await fetch(
-              `http://localhost:8090/api/donors?bloodGroup=${encodeURIComponent(
+              `${API_URL}/donors?bloodGroup=${encodeURIComponent(
                 foundRequest.bloodGroup
               )}`
             );
@@ -90,6 +92,7 @@ function Chat() {
           "Unable to load request:",
           error
         );
+
         setRequest(null);
       } finally {
         setLoadingRequest(false);
@@ -111,7 +114,7 @@ function Chat() {
         setLoadingMessages(true);
 
         const response = await fetch(
-          `http://localhost:8090/api/chats/${requestId}`
+          `${API_URL}/chats/${requestId}`
         );
 
         if (!response.ok) {
@@ -143,7 +146,7 @@ function Chat() {
     const interval = setInterval(async () => {
       try {
         const response = await fetch(
-          `http://localhost:8090/api/chats/${requestId}`
+          `${API_URL}/chats/${requestId}`
         );
 
         if (!response.ok) {
@@ -160,7 +163,10 @@ function Chat() {
           return current;
         });
       } catch (error) {
-        console.error("Unable to check new messages:", error);
+        console.error(
+          "Unable to check new messages:",
+          error
+        );
       }
     }, 1000);
 
@@ -222,9 +228,9 @@ function Chat() {
 
   // Chat only after acceptance
   if (
-  request.status?.toLowerCase() !== "accepted" &&
-  request.status?.toLowerCase() !== "completed"
-) {
+    request.status?.toLowerCase() !== "accepted" &&
+    request.status?.toLowerCase() !== "completed"
+  ) {
     return (
       <main className="chat-page">
         <div className="no-donors">
@@ -270,7 +276,7 @@ function Chat() {
       setSending(true);
 
       const response = await fetch(
-        `http://localhost:8090/api/chats/${request.id}?senderId=${currentUser.id}`,
+        `${API_URL}/chats/${requestId}?senderId=${currentUser.id}`,
         {
           method: "POST",
           headers: {
@@ -320,7 +326,9 @@ function Chat() {
   const otherName =
     currentUser?.role === "donor"
       ? request.patientName
-      : request.acceptedByName || donor?.name || "Donor";
+      : request.acceptedByName ||
+        donor?.name ||
+        "Donor";
 
   return (
     <main className="chat-page">
@@ -412,8 +420,7 @@ function Chat() {
               <div
                 key={item.id}
                 className={
-                  item.senderId ===
-                    currentUser?.id
+                  item.senderId === currentUser?.id
                     ? "message donor-message"
                     : "message receiver-message"
                 }

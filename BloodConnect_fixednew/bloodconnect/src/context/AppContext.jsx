@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "bloodconnect-state-v2";
+const API_URL = import.meta.env.VITE_API_URL;
 
 const initialState = {
   users: [
@@ -532,7 +533,7 @@ export function AppProvider({ children }) {
     }
 
     const response = await fetch(
-      `http://localhost:8090/api/requests?receiverId=${currentUser.id}`,
+     `${API_URL}/requests?receiverId=${currentUser.id}`,
       {
         method: "POST",
 
@@ -684,7 +685,7 @@ export function AppProvider({ children }) {
   const loadActiveRequests = async () => {
     try {
       const response = await fetch(
-        "http://localhost:8090/api/requests/active",
+        `${API_URL}/requests/active`,
         {
           headers: authHeaders(),
         }
@@ -750,7 +751,7 @@ export function AppProvider({ children }) {
 
     try {
       const response = await fetch(
-        `http://localhost:8090/api/requests/${requestId}/accept?donorId=${currentUser.id}`,
+        `${API_URL}/requests/${requestId}/accept?donorId=${currentUser.id}`,
         {
           method: "PUT",
           headers: authHeaders(),
@@ -938,7 +939,7 @@ export function AppProvider({ children }) {
 
     try {
       const response = await fetch(
-        `http://localhost:8090/api/auth/profile/${currentUser.id}`,
+        `${API_URL}/auth/profile/${currentUser.id}`,
         {
           method: "PUT",
 

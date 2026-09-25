@@ -1,8 +1,13 @@
 package com.bloodconnect.config;
 
-import org.springframework.context.annotation.Bean;
+import java.util.List;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -14,12 +19,13 @@ import com.bloodconnect.security.JwtAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
-	private final JwtAuthenticationFilter jwtAuthenticationFilter;
-	
-	public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-	    this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-	}
-	
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -30,17 +36,65 @@ public class SecurityConfig {
 
         http
             .csrf(csrf -> csrf.disable())
+
+            // Enable CORS
+            .cors(cors -> {})
+
             .sessionManagement(s ->
-                s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                s.sessionCreationPolicy(
+                    SessionCreationPolicy.STATELESS
+                )
             )
+
             .authorizeHttpRequests(a ->
                 a.anyRequest().permitAll()
             )
+
+            // Keep JWT authentication filter
             .addFilterBefore(
-            	    jwtAuthenticationFilter,
-            	    UsernamePasswordAuthenticationFilter.class
-            	);
+                jwtAuthenticationFilter,
+                UsernamePasswordAuthenticationFilter.class
+            );
 
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+
+        CorsConfiguration configuration =
+            new CorsConfiguration();
+
+        configuration.setAllowedOrigins(
+            List.of(
+                "http://localhost:5173"
+            )
+        );
+
+        configuration.setAllowedMethods(
+            List.of(
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "OPTIONS"
+            )
+        );
+
+        configuration.setAllowedHeaders(
+            List.of("*")
+        );
+
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source =
+            new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration(
+            "/**",
+            configuration
+        );
+
+        return source;
     }
 }
