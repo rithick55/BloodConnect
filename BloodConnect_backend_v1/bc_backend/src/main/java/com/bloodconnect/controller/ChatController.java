@@ -1,7 +1,6 @@
 package com.bloodconnect.controller;
 
 import com.bloodconnect.dto.MessageDto;
-import org.springframework.transaction.annotation.Transactional;
 import com.bloodconnect.entity.BloodRequest;
 import com.bloodconnect.entity.Message;
 import com.bloodconnect.entity.User;
@@ -12,9 +11,11 @@ import com.bloodconnect.repository.UserRepository;
 import jakarta.validation.Valid;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @RestController
@@ -38,17 +39,27 @@ public class ChatController {
         this.broker = broker;
     }
 
+    // =========================================================
+    // GET CHAT HISTORY
+    // =========================================================
+
     @GetMapping("/{requestId}")
     @Transactional(readOnly = true)
     public List<MessageView> history(
             @PathVariable Long requestId
     ) {
-        return messages
-                .findByRequestIdOrderByCreatedAtAsc(requestId)
-                .stream()
+
+        List<Message> messageList =
+                messages.findByRequestIdOrderByCreatedAtAsc(requestId);
+
+        return messageList.stream()
                 .map(MessageView::from)
                 .toList();
     }
+
+    // =========================================================
+    // SEND MESSAGE - HTTP
+    // =========================================================
 
     @PostMapping("/{requestId}")
     public MessageView send(
@@ -56,33 +67,41 @@ public class ChatController {
             @RequestParam Long senderId,
             @Valid @RequestBody MessageDto dto
     ) {
-        Message m = save(
-                requestId,
-                senderId,
-                dto.content()
-        );
 
-        MessageView v = MessageView.from(m);
+        Message m =
+                save(
+                        requestId,
+                        senderId,
+                        dto.content()
+                );
+
+        MessageView view =
+                MessageView.from(m);
 
         broker.convertAndSend(
                 "/topic/requests/" + requestId,
-                v
+                view
         );
 
-        return v;
+        return view;
     }
-    
+
+    // =========================================================
+    // SAVE + BROADCAST MESSAGE - WEBSOCKET
+    // =========================================================
 
     public Message saveAndBroadcast(
             Long requestId,
             Long senderId,
             String content
     ) {
-        Message m = save(
-                requestId,
-                senderId,
-                content
-        );
+
+        Message m =
+                save(
+                        requestId,
+                        senderId,
+                        content
+                );
 
         broker.convertAndSend(
                 "/topic/requests/" + requestId,
@@ -92,42 +111,135 @@ public class ChatController {
         return m;
     }
 
+    // =========================================================
+    // UNSEND MESSAGE
+    // =========================================================
+
+    @DeleteMapping("/{requestId}/{messageId}")
+    public void unsend(
+            @PathVariable Long requestId,
+            @PathVariable Long messageId,
+            @RequestParam Long senderId
+    ) {
+
+        Message message =
+                messages.findById(messageId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "Message not found."
+                                )
+                        );
+
+        // Make sure message belongs to this chat
+        if (
+                !message.getRequest()
+                        .getId()
+                        .equals(requestId)
+        ) {
+
+            throw new IllegalArgumentException(
+                    "Message does not belong to this chat."
+            );
+        }
+
+        // Only the original sender can unsend
+        if (
+                !message.getSender()
+                        .getId()
+                        .equals(senderId)
+        ) {
+
+            throw new IllegalArgumentException(
+                    "You can only unsend your own messages."
+            );
+        }
+
+        // Save information needed for WebSocket event
+        MessageView deletedMessage =
+                MessageView.deleted(
+                        message
+                );
+
+        // Delete from database
+        messages.delete(message);
+
+        // Tell both users immediately
+        broker.convertAndSend(
+                "/topic/requests/" + requestId,
+                deletedMessage
+        );
+    }
+
+    // =========================================================
+    // SAVE MESSAGE
+    // =========================================================
+
     private Message save(
             Long requestId,
             Long senderId,
             String content
     ) {
-        BloodRequest r = requests
-                .findById(requestId)
-                .orElseThrow();
 
-        User s = users
-                .findById(senderId)
-                .orElseThrow();
+        BloodRequest r =
+                requests.findById(requestId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "Blood request not found."
+                                )
+                        );
 
+        User s =
+                users.findById(senderId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "Sender not found."
+                                )
+                        );
+
+        // Only receiver or accepted donor can chat
         if (
-                !s.getId().equals(r.getReceiver().getId())
+                !s.getId()
+                        .equals(r.getReceiver().getId())
                 &&
                 (
-                    r.getAcceptedBy() == null
-                    ||
-                    !s.getId().equals(r.getAcceptedBy().getId())
+                        r.getAcceptedBy() == null
+                        ||
+                        !s.getId()
+                                .equals(
+                                        r.getAcceptedBy().getId()
+                                )
                 )
         ) {
+
             throw new IllegalArgumentException(
                     "You are not a participant in this chat."
             );
         }
 
-        Message m = new Message();
+        Message m =
+                new Message();
 
         m.setRequest(r);
+
         m.setSender(s);
-        m.setContent(content.trim());
-        m.setCreatedAt(LocalDateTime.now());
+
+        m.setContent(
+                content.trim()
+        );
+
+        // Always save new messages using Indian time
+        m.setCreatedAt(
+                LocalDateTime.now(
+                        ZoneId.of("Asia/Kolkata")
+                )
+        );
 
         return messages.save(m);
     }
+
+    // =========================================================
+    // MESSAGE RESPONSE
+    // =========================================================
 
     public record MessageView(
             Long id,
@@ -136,10 +248,14 @@ public class ChatController {
             String senderName,
             String senderRole,
             String content,
-            LocalDateTime createdAt
+            LocalDateTime createdAt,
+            String eventType
     ) {
 
-        static MessageView from(Message m) {
+        static MessageView from(
+                Message m
+        ) {
+
             return new MessageView(
                     m.getId(),
                     m.getRequest().getId(),
@@ -147,7 +263,24 @@ public class ChatController {
                     m.getSender().getName(),
                     m.getSender().getRole().name(),
                     m.getContent(),
-                    m.getCreatedAt()
+                    m.getCreatedAt(),
+                    "MESSAGE"
+            );
+        }
+
+        static MessageView deleted(
+                Message m
+        ) {
+
+            return new MessageView(
+                    m.getId(),
+                    m.getRequest().getId(),
+                    m.getSender().getId(),
+                    m.getSender().getName(),
+                    m.getSender().getRole().name(),
+                    null,
+                    m.getCreatedAt(),
+                    "DELETED"
             );
         }
     }

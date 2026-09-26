@@ -7,5 +7,10 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @Configuration @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureMessageBroker(MessageBrokerRegistry registry){ registry.enableSimpleBroker("/topic"); registry.setApplicationDestinationPrefixes("/app"); }
-    public void registerStompEndpoints(StompEndpointRegistry registry){ registry.addEndpoint("/ws").setAllowedOriginPatterns("http://localhost:5173").withSockJS(); }
+    public void registerStompEndpoints(StompEndpointRegistry registry) {
+        registry
+            .addEndpoint("/ws")
+            .setAllowedOriginPatterns("http://localhost:5173")
+            .withSockJS();
+    }
 }

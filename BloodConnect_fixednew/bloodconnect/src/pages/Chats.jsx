@@ -6,52 +6,75 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 function Chats() {
   const navigate = useNavigate();
-  const { currentUser } = useApp();
+  const { currentUser, requests } = useApp();
+console.log("CHAT REQUESTS FROM CONTEXT:", requests);
 
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState(null);
 
   useEffect(() => {
-    if (!currentUser?.id || !currentUser?.role) {
-      setLoading(false);
-      return;
-    }
+  if (!currentUser?.id || !currentUser?.role) {
+    setLoading(false);
+    return;
+  }
 
-    const loadConversations = async () => {
-      try {
-        setLoading(true);
+  // Show any already-loaded accepted/completed requests immediately
+  const cachedRequests = (requests || [])
+    .filter(
+      (request) =>
+        String(request.receiverId) === String(currentUser.id) ||
+        String(request.acceptedBy) === String(currentUser.id)
+    )
+    .filter(
+      (request) =>
+        request.status?.toLowerCase() === "accepted" ||
+        request.status?.toLowerCase() === "completed"
+    );
 
-       const endpoint =
-  currentUser.role === "receiver"
-    ? `${API_URL}/requests/receiver/${currentUser.id}`
-    : `${API_URL}/requests/donor/${currentUser.id}`;
+  if (cachedRequests.length > 0) {
+    setConversations(cachedRequests);
+    setLoading(false);
+  }
 
-        const response = await fetch(endpoint);
+  // Always refresh from backend in the background
+  const loadConversations = async () => {
+    try {
+      const endpoint =
+        currentUser.role === "receiver"
+          ? `${API_URL}/requests/receiver/${currentUser.id}`
+          : `${API_URL}/requests/donor/${currentUser.id}`;
 
-        if (!response.ok) {
-          throw new Error("Unable to load conversations.");
-        }
+      const response = await fetch(endpoint);
 
-        const data = await response.json();
-
-        const acceptedRequests = data.filter(
-          (request) =>
-            request.status?.toLowerCase() === "accepted" ||
-            request.status?.toLowerCase() === "completed"
-        );
-
-        setConversations(acceptedRequests);
-      } catch (error) {
-        console.error("Unable to load conversations:", error);
-        setConversations([]);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Unable to load conversations.");
       }
-    };
 
-    loadConversations();
-  }, [currentUser?.id, currentUser?.role]);
+      const data = await response.json();
+
+      const acceptedRequests = data.filter(
+        (request) =>
+          request.status?.toLowerCase() === "accepted" ||
+          request.status?.toLowerCase() === "completed"
+      );
+
+      setConversations(acceptedRequests);
+    } catch (error) {
+      console.error("Unable to load conversations:", error);
+
+      // Only clear if we have nothing cached
+      if (cachedRequests.length === 0) {
+        setConversations([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadConversations();
+}, [currentUser?.id, currentUser?.role, requests]);
+
 
   const markBloodReceived = async (requestId) => {
     if (!currentUser?.id) return;
