@@ -374,72 +374,72 @@ function Chat() {
                   );
 
 
-                  // =========================================
-                  // MESSAGE WAS UNSENT
-                  // =========================================
+                // =========================================
+                // MESSAGE WAS UNSENT
+                // =========================================
 
-                  if (
-                    newMessage.eventType ===
-                    "DELETED"
-                  ) {
-
-                    setConversation(
-                      (current) =>
-                        current.map(
-                          (item) =>
-                            String(item.id) ===
-                            String(
-                              newMessage.id
-                            )
-                              ? {
-                                  ...item,
-                                  content:
-                                    null,
-                                  eventType:
-                                    "DELETED",
-                                }
-                              : item
-                        )
-                    );
-
-                    return;
-
-                  }
-
-
-                  // =========================================
-                  // NORMAL NEW MESSAGE
-                  // =========================================
+                if (
+                  newMessage.eventType ===
+                  "DELETED"
+                ) {
 
                   setConversation(
-                    (current) => {
-
-                      const alreadyExists =
-                        current.some(
-                          (item) =>
-                            String(
-                              item.id
-                            ) ===
+                    (current) =>
+                      current.map(
+                        (item) =>
+                          String(item.id) ===
                             String(
                               newMessage.id
                             )
-                        );
+                            ? {
+                              ...item,
+                              content:
+                                null,
+                              eventType:
+                                "DELETED",
+                            }
+                            : item
+                      )
+                  );
 
-                      if (
-                        alreadyExists
-                      ) {
+                  return;
 
-                        return current;
+                }
 
-                      }
 
-                      return [
-                        ...current,
-                        newMessage,
-                      ];
+                // =========================================
+                // NORMAL NEW MESSAGE
+                // =========================================
+
+                setConversation(
+                  (current) => {
+
+                    const alreadyExists =
+                      current.some(
+                        (item) =>
+                          String(
+                            item.id
+                          ) ===
+                          String(
+                            newMessage.id
+                          )
+                      );
+
+                    if (
+                      alreadyExists
+                    ) {
+
+                      return current;
 
                     }
-                  );
+
+                    return [
+                      ...current,
+                      newMessage,
+                    ];
+
+                  }
+                );
 
               } catch (error) {
 
@@ -658,9 +658,9 @@ function Chat() {
 
   if (
     request.status?.toLowerCase() !==
-      "accepted" &&
+    "accepted" &&
     request.status?.toLowerCase() !==
-      "completed"
+    "completed"
   ) {
 
     return (
@@ -808,8 +808,8 @@ function Chat() {
     currentUser?.role === "donor"
       ? request.patientName
       : request.acceptedByName ||
-        donor?.name ||
-        "Donor";
+      donor?.name ||
+      "Donor";
 
 
   // =========================================================
@@ -1049,44 +1049,18 @@ function Chat() {
 
                     {isMine &&
                       !isDeleted && (
-
                         <button
                           type="button"
-                          onClick={() =>
-                            unsendMessage(
-                              item.id
-                            )
-                          }
-                          disabled={
-                            unsendingId ===
-                            item.id
-                          }
-                          style={{
-                            display:
-                              "block",
-                            marginTop:
-                              "5px",
-                            fontSize:
-                              "12px",
-                            cursor:
-                              "pointer",
-                            border:
-                              "none",
-                            background:
-                              "transparent",
-                            textDecoration:
-                              "underline",
-                          }}
+                          onClick={() => unsendMessage(item.id)}
+                          disabled={unsendingId === item.id}
+                          className="unsend-button"
                         >
-
-                          {unsendingId ===
-                          item.id
+                          {unsendingId === item.id
                             ? "Unsending..."
                             : "Unsend"}
-
                         </button>
 
-                    )}
+                      )}
 
                   </div>
 

@@ -114,7 +114,7 @@ public class ChatController {
     // =========================================================
     // UNSEND MESSAGE
     // =========================================================
-
+    @Transactional
     @DeleteMapping("/{requestId}/{messageId}")
     public void unsend(
             @PathVariable Long requestId,
@@ -130,46 +130,52 @@ public class ChatController {
                                 )
                         );
 
-        // Make sure message belongs to this chat
+        // Check that this message belongs to this chat
         if (
                 !message.getRequest()
                         .getId()
                         .equals(requestId)
         ) {
-
             throw new IllegalArgumentException(
                     "Message does not belong to this chat."
             );
         }
 
-        // Only the original sender can unsend
+        // Check that the logged-in user owns this message
         if (
                 !message.getSender()
                         .getId()
                         .equals(senderId)
         ) {
-
             throw new IllegalArgumentException(
                     "You can only unsend your own messages."
             );
         }
 
-        // Save information needed for WebSocket event
+        // Create the WebSocket event BEFORE deleting
         MessageView deletedMessage =
-                MessageView.deleted(
-                        message
+                MessageView.deleted(message);
+
+        // Delete using request + sender + message ID
+        int deleted =
+                messages.deleteMessage(
+                        messageId,
+                        requestId,
+                        senderId
                 );
 
-        // Delete from database
-        messages.delete(message);
+        if (deleted == 0) {
+            throw new IllegalArgumentException(
+                    "Unable to unsend message."
+            );
+        }
 
-        // Tell both users immediately
+        // Notify both users
         broker.convertAndSend(
                 "/topic/requests/" + requestId,
                 deletedMessage
         );
     }
-
     // =========================================================
     // SAVE MESSAGE
     // =========================================================

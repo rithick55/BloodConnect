@@ -5225,3 +5225,42 @@
     font-size: 26px;
   }
 }
+
+.unsend-button {
+  margin-top: 6px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.unsend-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.unsend-button {
+  margin-top: 6px;
+  padding: 4px 9px;
+  border: none;
+  border-radius: 5px;
+  background: #ffe5e5;
+  color: #d32f2f;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.unsend-button:hover {
+  background: #ffcaca;
+  color: #000000;
+}
+
+.unsend-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
