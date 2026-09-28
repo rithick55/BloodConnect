@@ -10,9 +10,7 @@ public class ChatWebSocketController {
 
     private final ChatController chat;
 
-    public ChatWebSocketController(
-            ChatController chat
-    ) {
+    public ChatWebSocketController(ChatController chat) {
         this.chat = chat;
     }
 
@@ -23,15 +21,17 @@ public class ChatWebSocketController {
     ) {
 
         chat.saveAndBroadcast(
-                requestId,
-                payload.senderId(),
-                payload.content()
+            requestId,
+            payload.senderId(),
+            payload.content(),
+            payload.replyToId()
         );
     }
 
     public record WebSocketMessage(
             Long senderId,
-            String content
+            String content,
+            Long replyToId
     ) {
     }
 }

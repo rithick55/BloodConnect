@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -35,6 +35,12 @@ function Chat() {
   const [sending, setSending] = useState(false);
 
   const [unsendingId, setUnsendingId] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [swipeMessageId, setSwipeMessageId] = useState(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+
+  const swipeStartX = useRef(null);
+  const swipeDistance = useRef(0);
 
 
   // =========================================================
@@ -741,23 +747,19 @@ function Chat() {
               destination:
                 `/app/chat/${requestId}`,
 
-              body:
-                JSON.stringify({
-
-                  senderId:
-                    currentUser.id,
-
-                  content:
-                    message.trim(),
-
-                }),
+              body: JSON.stringify({
+                senderId: currentUser.id,
+                content: message.trim(),
+                replyToId: replyingTo?.id || null,
+              }),
 
             });
 
             setMessage("");
-
+            setReplyingTo(null);
+            setSwipeOffset(0);
+            setSwipeMessageId(null);
             setSending(false);
-
             tempClient.deactivate();
 
           };
@@ -979,6 +981,55 @@ function Chat() {
                   "DELETED" ||
                   item.content === null;
 
+                const handleSwipeStart = (clientX) => {
+                  if (isDeleted) return;
+
+                  swipeStartX.current = clientX;
+                  swipeDistance.current = 0;
+
+                  setSwipeMessageId(item.id);
+                  setSwipeOffset(0);
+                };
+
+                const handleSwipeMove = (clientX) => {
+                  if (
+                    swipeStartX.current === null ||
+                    isDeleted
+                  ) {
+                    return;
+                  }
+
+                  const distance =
+                    clientX - swipeStartX.current;
+
+                  const limitedDistance = Math.max(
+                    0,
+                    Math.min(distance, 100)
+                  );
+
+                  swipeDistance.current = limitedDistance;
+
+                  setSwipeOffset(limitedDistance);
+                };
+
+                const handleSwipeEnd = () => {
+                  if (swipeStartX.current === null) {
+                    return;
+                  }
+
+                  if (
+                    swipeDistance.current >= 60 &&
+                    !isDeleted
+                  ) {
+                    setReplyingTo(item);
+                  }
+
+                  swipeStartX.current = null;
+                  swipeDistance.current = 0;
+
+                  setSwipeOffset(0);
+                  setSwipeMessageId(null);
+                };
 
                 return (
 
@@ -989,11 +1040,61 @@ function Chat() {
                         ? "message donor-message"
                         : "message receiver-message"
                     }
+                    onTouchStart={(e) =>
+                      handleSwipeStart(e.touches[0].clientX)
+                    }
+
+                    onTouchMove={(e) =>
+                      handleSwipeMove(e.touches[0].clientX)
+                    }
+
+                    onTouchEnd={handleSwipeEnd}
+
+                    onMouseDown={(e) =>
+                      handleSwipeStart(e.clientX)
+                    }
+
+                    onMouseMove={(e) => {
+                      if (e.buttons === 1) {
+                        handleSwipeMove(e.clientX);
+                      }
+                    }}
+
+                    onMouseUp={handleSwipeEnd}
+
+                    onMouseLeave={() => {
+                      if (swipeStartX.current !== null) {
+                        handleSwipeEnd();
+                      }
+                    }}
+                    
+                    style={{
+                      transform:
+                        swipeMessageId === item.id
+                          ? `translateX(${swipeOffset}px)`
+                          : "translateX(0)",
+                      transition:
+                        swipeMessageId === item.id
+                          ? "none"
+                          : "transform 0.2s ease",
+                      touchAction: "pan-y",
+                    }}
                   >
 
                     {/* ================================= */}
                     {/* MESSAGE CONTENT */}
                     {/* ================================= */}
+                    {item.replyToId && (
+                      <div className="replied-message">
+                        <strong>
+                          {item.replyToSenderName}
+                        </strong>
+
+                        <p>
+                          {item.replyToContent}
+                        </p>
+                      </div>
+                    )}
 
                     {isDeleted ? (
 
@@ -1069,6 +1170,27 @@ function Chat() {
         {/* ============================================== */}
         {/* INPUT */}
         {/* ============================================== */}
+
+        {replyingTo && (
+          <div className="reply-preview">
+            <div>
+              <strong>
+                Replying to {replyingTo.senderName}
+              </strong>
+
+              <p>
+                {replyingTo.content}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setReplyingTo(null)}
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         <div className="chat-input-area">
 

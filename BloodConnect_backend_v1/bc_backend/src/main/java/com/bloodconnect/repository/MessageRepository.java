@@ -5,6 +5,7 @@ import com.bloodconnect.entity.Message;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
@@ -34,5 +35,26 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             @Param("requestId") Long requestId,
             @Param("senderId") Long senderId
     );
+
     void deleteByRequestId(Long requestId);
+    @Modifying
+    @Query("""
+        UPDATE Message m
+        SET m.replyTo = null
+        WHERE m.replyTo.id = :messageId
+    """)
+    void clearRepliesToMessage(
+            @Param("messageId") Long messageId
+    );
+
+    @Modifying
+    @Query("""
+        UPDATE Message m
+        SET m.replyTo = null
+        WHERE m.request.id = :requestId
+    """)
+    void clearRepliesByRequestId(
+            @Param("requestId") Long requestId
+    );
+    
 }
