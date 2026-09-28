@@ -1,6 +1,7 @@
 package com.bloodconnect.repository;
 
 import com.bloodconnect.entity.Message;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -33,4 +34,5 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             @Param("requestId") Long requestId,
             @Param("senderId") Long senderId
     );
+    void deleteByRequestId(Long requestId);
 }

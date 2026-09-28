@@ -1,12 +1,15 @@
 package com.bloodconnect.controller;
 
 import com.bloodconnect.dto.MessageDto;
+
 import com.bloodconnect.entity.BloodRequest;
 import com.bloodconnect.entity.Message;
 import com.bloodconnect.entity.User;
 import com.bloodconnect.repository.BloodRequestRepository;
 import com.bloodconnect.repository.MessageRepository;
 import com.bloodconnect.repository.UserRepository;
+import com.bloodconnect.entity.ChatDeletion;
+import com.bloodconnect.repository.ChatDeletionRepository;
 
 import jakarta.validation.Valid;
 
@@ -22,22 +25,25 @@ import java.util.List;
 @RequestMapping("/api/chats")
 public class ChatController {
 
-    private final MessageRepository messages;
-    private final BloodRequestRepository requests;
-    private final UserRepository users;
-    private final SimpMessagingTemplate broker;
+	private final MessageRepository messages;
+	private final BloodRequestRepository requests;
+	private final UserRepository users;
+	private final ChatDeletionRepository chatDeletions;
+	private final SimpMessagingTemplate broker;
 
-    public ChatController(
-            MessageRepository messages,
-            BloodRequestRepository requests,
-            UserRepository users,
-            SimpMessagingTemplate broker
-    ) {
-        this.messages = messages;
-        this.requests = requests;
-        this.users = users;
-        this.broker = broker;
-    }
+	public ChatController(
+	        MessageRepository messages,
+	        BloodRequestRepository requests,
+	        UserRepository users,
+	        ChatDeletionRepository chatDeletions,
+	        SimpMessagingTemplate broker
+	) {
+	    this.messages = messages;
+	    this.requests = requests;
+	    this.users = users;
+	    this.chatDeletions = chatDeletions;
+	    this.broker = broker;
+	}
 
     // =========================================================
     // GET CHAT HISTORY
@@ -290,4 +296,103 @@ public class ChatController {
             );
         }
     }
+    
+ // =========================================================
+ // DELETE ENTIRE CHAT FOR USER
+ // =========================================================
+
+ @Transactional
+ @DeleteMapping("/{requestId}/conversation")
+ public void deleteConversation(
+         @PathVariable Long requestId,
+         @RequestParam Long userId
+ ) {
+
+     BloodRequest request =
+             requests.findById(requestId)
+                     .orElseThrow(
+                             () -> new IllegalArgumentException(
+                                     "Blood request not found."
+                             )
+                     );
+
+     User user =
+             users.findById(userId)
+                     .orElseThrow(
+                             () -> new IllegalArgumentException(
+                                     "User not found."
+                             )
+                     );
+
+     // Make sure the user belongs to this conversation
+     boolean isReceiver =
+             request.getReceiver()
+                     .getId()
+                     .equals(userId);
+
+     boolean isDonor =
+             request.getAcceptedBy() != null &&
+             request.getAcceptedBy()
+                     .getId()
+                     .equals(userId);
+     
+     System.out.println(
+    	        "DELETE CHAT -> requestId=" + requestId
+    	        + ", userId=" + userId
+    	        + ", receiverId=" + request.getReceiver().getId()
+    	        + ", acceptedById="
+    	        + (request.getAcceptedBy() != null
+    	            ? request.getAcceptedBy().getId()
+    	            : null)
+    	);
+
+     if (!isReceiver && !isDonor) {
+         throw new IllegalArgumentException(
+                 "You are not a participant in this chat."
+         );
+     }
+
+     // Remove existing messages from this conversation
+     messages.deleteByRequestId(requestId);
+
+     // Remember that this user deleted the conversation
+     if (
+             !chatDeletions
+                     .existsByRequestIdAndUserId(
+                             requestId,
+                             userId
+                     )
+     ) {
+
+         ChatDeletion deletion =
+                 new ChatDeletion();
+
+         deletion.setRequest(request);
+         deletion.setUser(user);
+         deletion.setDeletedAt(
+                 LocalDateTime.now(
+                         ZoneId.of("Asia/Kolkata")
+                 )
+         );
+
+         chatDeletions.save(deletion);
+     }
+
+     // Notify the chat page
+     broker.convertAndSend(
+             "/topic/requests/" + requestId,
+             new MessageView(
+                     null,
+                     requestId,
+                     userId,
+                     user.getName(),
+                     user.getRole().name(),
+                     null,
+                     LocalDateTime.now(
+                             ZoneId.of("Asia/Kolkata")
+                     ),
+                     "CHAT_DELETED"
+             )
+     );
+ }
 }
