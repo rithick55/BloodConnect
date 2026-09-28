@@ -5770,3 +5770,339 @@
 .reply-preview button:hover {
   color: #dc2626;
 }
+.login-success-message {
+  width: fit-content;
+  margin: 24px auto 0;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: #f0fff4;
+  color: #16803c;
+  border: 1px solid #b7ebc6;
+  font-size: 15px;
+  font-weight: 600;
+}
+.nav-slogan {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
+  
+}
+.donor-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notification-button {
+  position: relative;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.notification-count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 50%;
+  background: #d32f2f;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.receiver-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notification-button {
+  position: relative;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.notification-count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 50%;
+  background: #d32f2f;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-header {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.dashboard-header-content {
+  flex: 1;
+}
+
+.receiver-header-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+.notification-button {
+  position: relative;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  line-height: 1;
+}
+
+.notification-count {
+  position: absolute;
+  top: 0;
+  right: 0;
+
+  min-width: 18px;
+  height: 18px;
+
+  padding: 0 4px;
+  border-radius: 50%;
+
+  background: #d32f2f;
+  color: white;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logout-button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Receiver Dashboard Header */
+/* 
+.receiver-dashboard-header {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.receiver-dashboard-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  z-index: 100;
+}
+
+.receiver-dashboard-actions .notification-button {
+  position: relative;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  line-height: 1;
+}
+
+.receiver-dashboard-actions .notification-count {
+  position: absolute;
+  top: 0;
+  right: 0;
+
+  min-width: 18px;
+  height: 18px;
+
+  padding: 0 4px;
+  border-radius: 50%;
+
+  background: #d32f2f;
+  color: white;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+} */
+
+/* FINAL RECEIVER HEADER FIX */
+
+.dashboard-page {
+  position: relative;
+}
+
+.dashboard-page > .receiver-header-actions {
+  position: absolute;
+  top: 65px;
+  right: 30px;
+
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+
+  z-index: 100;
+}
+
+.dashboard-page > .receiver-header-actions .notification-button {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #dddddd;
+  border-radius: 8px;
+  background: #ffffff;
+
+  font-size: 22px;
+  line-height: 1;
+}
+
+.dashboard-page > .receiver-header-actions .logout-button {
+  position: static;
+
+  height: 42px;
+  padding: 0 18px;
+
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #d32f2f;
+}
+
+.logout-button {
+    position: static;
+}
+
+.donor-dashboard-header {
+  position: relative;
+}
+
+.donor-dashboard-header .donor-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.donor-dashboard-header .donor-header-actions .notification-button {
+  position: relative;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.donor-dashboard-header .donor-header-actions .donor-logout {
+  position: static;
+  margin-top: 0;
+}
+
+
+.notification-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 320px;
+  max-height: 350px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  padding: 8px;
+}
+
+.notification-item {
+  padding: 12px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item strong {
+  font-size: 14px;
+}
+
+.notification-item p {
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.notification-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.clear-notifications {
+  border: none;
+  background: transparent;
+  color: #d32f2f;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clear-notifications:hover {
+  text-decoration: underline;
+}
+
+.no-notifications {
+  padding: 15px;
+  margin: 0;
+  text-align: center;
+  color: #777;
+  font-size: 13px;
+}

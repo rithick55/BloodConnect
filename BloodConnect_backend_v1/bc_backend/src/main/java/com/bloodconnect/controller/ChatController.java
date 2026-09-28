@@ -1,46 +1,43 @@
 package com.bloodconnect.controller;
 
-import com.bloodconnect.dto.MessageDto;
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.bloodconnect.dto.MessageView;
+import com.bloodconnect.dto.NotificationView;
 import com.bloodconnect.entity.BloodRequest;
-import com.bloodconnect.entity.ChatDeletion;
 import com.bloodconnect.entity.Message;
 import com.bloodconnect.entity.User;
 import com.bloodconnect.repository.BloodRequestRepository;
-import com.bloodconnect.repository.ChatDeletionRepository;
 import com.bloodconnect.repository.MessageRepository;
 import com.bloodconnect.repository.UserRepository;
 
-import jakarta.validation.Valid;
-
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.List;
-
 @RestController
-@RequestMapping("/api/chats")
+@RequestMapping("/api/chat")
 public class ChatController {
 
-    private final MessageRepository messages;
-    private final BloodRequestRepository requests;
-    private final UserRepository users;
-    private final ChatDeletionRepository chatDeletions;
+    private final MessageRepository messageRepository;
+    private final BloodRequestRepository bloodRequestRepository;
+    private final UserRepository userRepository;
     private final SimpMessagingTemplate broker;
 
     public ChatController(
-            MessageRepository messages,
-            BloodRequestRepository requests,
-            UserRepository users,
-            ChatDeletionRepository chatDeletions,
+            MessageRepository messageRepository,
+            BloodRequestRepository bloodRequestRepository,
+            UserRepository userRepository,
             SimpMessagingTemplate broker
     ) {
-        this.messages = messages;
-        this.requests = requests;
-        this.users = users;
-        this.chatDeletions = chatDeletions;
+        this.messageRepository = messageRepository;
+        this.bloodRequestRepository = bloodRequestRepository;
+        this.userRepository = userRepository;
         this.broker = broker;
     }
 
@@ -49,58 +46,101 @@ public class ChatController {
     // =========================================================
 
     @GetMapping("/{requestId}")
-    @Transactional(readOnly = true)
-    public List<MessageView> history(
+    public ResponseEntity<List<MessageView>> getMessages(
             @PathVariable Long requestId
     ) {
 
-        List<Message> messageList =
-                messages.findByRequestIdOrderByCreatedAtAsc(requestId);
+        List<Message> messages =
+                messageRepository.findByRequestIdOrderByCreatedAtAsc(requestId);
 
-        return messageList.stream()
-                .map(MessageView::from)
-                .toList();
+        List<MessageView> result =
+                messages.stream()
+                        .map(MessageView::from)
+                        .toList();
+
+        return ResponseEntity.ok(result);
     }
 
+
     // =========================================================
-    // SEND MESSAGE - HTTP
+    // SAVE MESSAGE
     // =========================================================
 
-    @PostMapping("/{requestId}")
     @Transactional
-    public MessageView send(
-            @PathVariable Long requestId,
-            @RequestParam Long senderId,
-            @Valid @RequestBody MessageDto dto
+    public Message save(
+            Long requestId,
+            Long senderId,
+            String content,
+            Long replyToId
     ) {
 
-        /*
-         * IMPORTANT:
-         * Previously this was passing null as replyToId.
-         *
-         * That meant the frontend could select a message to reply to,
-         * but the backend was not saving that reply relationship.
-         */
+        BloodRequest request =
+                bloodRequestRepository.findById(requestId)
+                        .orElseThrow(() ->
+                                new RuntimeException("Blood request not found")
+                        );
 
-        Message m = save(
-                requestId,
-                senderId,
-                dto.content(),
-                dto.replyToId()
-        );
+        User sender =
+                userRepository.findById(senderId)
+                        .orElseThrow(() ->
+                                new RuntimeException("Sender not found")
+                        );
 
-        MessageView view = MessageView.from(m);
+        // -----------------------------------------------------
+        // CHECK PARTICIPANTS
+        // -----------------------------------------------------
 
-        broker.convertAndSend(
-                "/topic/requests/" + requestId,
-                view
-        );
+        boolean isReceiver =
+                request.getReceiver() != null
+                        && request.getReceiver().getId().equals(senderId);
 
-        return view;
+        boolean isAcceptedDonor =
+                request.getAcceptedBy() != null
+                        && request.getAcceptedBy().getId().equals(senderId);
+
+        if (!isReceiver && !isAcceptedDonor) {
+            throw new RuntimeException(
+                    "You are not allowed to send messages for this request"
+            );
+        }
+
+        // -----------------------------------------------------
+        // CREATE MESSAGE
+        // -----------------------------------------------------
+
+        Message message = new Message();
+
+        message.setRequest(request);
+        message.setSender(sender);
+        message.setContent(content);
+
+        // -----------------------------------------------------
+        // REPLY MESSAGE
+        // -----------------------------------------------------
+
+        if (replyToId != null) {
+
+            Message replyTo =
+                    messageRepository.findById(replyToId)
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Reply message not found"
+                                    )
+                            );
+
+            message.setReplyTo(replyTo);
+        }
+
+        // -----------------------------------------------------
+        // SAVE
+        // -----------------------------------------------------
+
+        return messageRepository.save(message);
     }
 
+
     // =========================================================
-    // SAVE + BROADCAST MESSAGE - WEBSOCKET
+    // SAVE + BROADCAST MESSAGE
     // =========================================================
 
     @Transactional
@@ -111,389 +151,161 @@ public class ChatController {
             Long replyToId
     ) {
 
-        Message message = save(
-                requestId,
-                senderId,
-                content,
-                replyToId
-        );
+        Message message =
+                save(
+                        requestId,
+                        senderId,
+                        content,
+                        replyToId
+                );
 
-        MessageView view = MessageView.from(message);
+        // -----------------------------------------------------
+        // BROADCAST CHAT MESSAGE
+        // -----------------------------------------------------
+
+        MessageView view =
+                MessageView.from(message);
 
         broker.convertAndSend(
                 "/topic/requests/" + requestId,
                 view
         );
+
+        // -----------------------------------------------------
+        // SEND NOTIFICATION TO OTHER USER
+        // -----------------------------------------------------
+
+        sendMessageNotification(message);
     }
 
-    // =========================================================
-    // UNSEND MESSAGE
-    // =========================================================
-
-    @Transactional
-    @DeleteMapping("/{requestId}/{messageId}")
-    public void unsend(
-            @PathVariable Long requestId,
-            @PathVariable Long messageId,
-            @RequestParam Long senderId
-    ) {
-
-        Message message =
-                messages.findById(messageId)
-                        .orElseThrow(
-                                () -> new IllegalArgumentException(
-                                        "Message not found."
-                                )
-                        );
-
-        // Check message belongs to this chat
-        if (
-                !message.getRequest()
-                        .getId()
-                        .equals(requestId)
-        ) {
-            throw new IllegalArgumentException(
-                    "Message does not belong to this chat."
-            );
-        }
-
-        // Check sender owns this message
-        if (
-                !message.getSender()
-                        .getId()
-                        .equals(senderId)
-        ) {
-            throw new IllegalArgumentException(
-                    "You can only unsend your own messages."
-            );
-        }
-
-        // Create event BEFORE deleting
-        MessageView deletedMessage =
-                MessageView.deleted(message);
-
-        // Remove reply references first
-        messages.clearRepliesToMessage(messageId);
-
-        int deleted =
-                messages.deleteMessage(
-                        messageId,
-                        requestId,
-                        senderId
-                );
-
-        if (deleted == 0) {
-            throw new IllegalArgumentException(
-                    "Unable to unsend message."
-            );
-        }
-
-        // Notify both users
-        broker.convertAndSend(
-                "/topic/requests/" + requestId,
-                deletedMessage
-        );
-    }
 
     // =========================================================
-    // SAVE MESSAGE
+    // SEND CHAT MESSAGE NOTIFICATION
     // =========================================================
 
-    private Message save(
-            Long requestId,
-            Long senderId,
-            String content,
-            Long replyToId
-    ) {
-        BloodRequest r =
-                requests.findById(requestId)
-                        .orElseThrow(
-                                () -> new IllegalArgumentException(
-                                        "Blood request not found."
-                                )
-                        );
-
-        User s =
-                users.findById(senderId)
-                        .orElseThrow(
-                                () -> new IllegalArgumentException(
-                                        "Sender not found."
-                                )
-                        );
-
-        // Only receiver or accepted donor can chat
-        if (
-                !s.getId().equals(
-                        r.getReceiver().getId()
-                )
-                &&
-                (
-                        r.getAcceptedBy() == null
-                        ||
-                        !s.getId().equals(
-                                r.getAcceptedBy().getId()
-                        )
-                )
-        ) {
-            throw new IllegalArgumentException(
-                    "You are not a participant in this chat."
-            );
-        }
-
-        Message m = new Message();
-
-        m.setRequest(r);
-        m.setSender(s);
-        m.setContent(content.trim());
-
-        m.setCreatedAt(
-                LocalDateTime.now(
-                        ZoneId.of("Asia/Kolkata")
-                )
-        );
-
-        // =====================================================
-        // REPLY MESSAGE
-        // =====================================================
-
-        if (replyToId != null) {
-
-            Message replyTo =
-                    messages.findById(replyToId)
-                            .orElseThrow(
-                                    () -> new IllegalArgumentException(
-                                            "Reply message not found."
-                                    )
-                            );
-
-            // Make sure the replied message belongs
-            // to the same blood request/chat
-            if (
-                    !replyTo.getRequest()
-                            .getId()
-                            .equals(requestId)
-            ) {
-                throw new IllegalArgumentException(
-                        "Reply message does not belong to this chat."
-                );
-            }
-
-            // Save the relationship
-            m.setReplyTo(replyTo);
-        }
-
-        return messages.save(m);
-    }
-
-    // =========================================================
-    // MESSAGE RESPONSE
-    // =========================================================
-
-    public record MessageView(
-
-            Long id,
-
-            Long requestId,
-
-            Long senderId,
-
-            String senderName,
-
-            String senderRole,
-
-            String content,
-
-            LocalDateTime createdAt,
-
-            String eventType,
-
-            Long replyToId,
-
-            String replyToSenderName,
-
-            String replyToContent
-
-    ) {
-
-        static MessageView from(Message m) {
-
-            Message reply = m.getReplyTo();
-
-            return new MessageView(
-
-                    m.getId(),
-
-                    m.getRequest().getId(),
-
-                    m.getSender().getId(),
-
-                    m.getSender().getName(),
-
-                    m.getSender().getRole().name(),
-
-                    m.getContent(),
-
-                    m.getCreatedAt(),
-
-                    "MESSAGE",
-
-                    reply != null
-                            ? reply.getId()
-                            : null,
-
-                    reply != null
-                            ? reply.getSender().getName()
-                            : null,
-
-                    reply != null
-                            ? reply.getContent()
-                            : null
-            );
-        }
-
-        static MessageView deleted(Message m) {
-
-            Message reply = m.getReplyTo();
-
-            return new MessageView(
-
-                    m.getId(),
-
-                    m.getRequest().getId(),
-
-                    m.getSender().getId(),
-
-                    m.getSender().getName(),
-
-                    m.getSender().getRole().name(),
-
-                    null,
-
-                    m.getCreatedAt(),
-
-                    "DELETED",
-
-                    reply != null
-                            ? reply.getId()
-                            : null,
-
-                    reply != null
-                            ? reply.getSender().getName()
-                            : null,
-
-                    reply != null
-                            ? reply.getContent()
-                            : null
-            );
-        }
-    }
-
-    // =========================================================
-    // DELETE ENTIRE CHAT FOR USER
-    // =========================================================
-
-    @Transactional
-    @DeleteMapping("/{requestId}/conversation")
-    public void deleteConversation(
-            @PathVariable Long requestId,
-            @RequestParam Long userId
+    private void sendMessageNotification(
+            Message message
     ) {
 
         BloodRequest request =
-                requests.findById(requestId)
-                        .orElseThrow(
-                                () -> new IllegalArgumentException(
-                                        "Blood request not found."
-                                )
-                        );
+                message.getRequest();
 
-        User user =
-                users.findById(userId)
-                        .orElseThrow(
-                                () -> new IllegalArgumentException(
-                                        "User not found."
-                                )
-                        );
+        User sender =
+                message.getSender();
 
-        boolean isReceiver =
-                request.getReceiver()
-                        .getId()
-                        .equals(userId);
-
-        boolean isDonor =
-                request.getAcceptedBy() != null
-                &&
-                request.getAcceptedBy()
-                        .getId()
-                        .equals(userId);
-
-        if (!isReceiver && !isDonor) {
-
-            throw new IllegalArgumentException(
-                    "You are not a participant in this chat."
-            );
+        if (request == null || sender == null) {
+            return;
         }
 
-        // Remove reply references first
-        messages.clearRepliesByRequestId(requestId);
+        User recipient = null;
 
-        // Remove existing messages
-        messages.deleteByRequestId(requestId);
+        // -----------------------------------------------------
+        // RECEIVER SENT MESSAGE
+        // → NOTIFY DONOR
+        // -----------------------------------------------------
 
-        // Remember deletion
         if (
-                !chatDeletions
-                        .existsByRequestIdAndUserId(
-                                requestId,
-                                userId
-                        )
+                request.getReceiver() != null
+                        && request.getReceiver()
+                        .getId()
+                        .equals(sender.getId())
         ) {
 
-            ChatDeletion deletion =
-                    new ChatDeletion();
-
-            deletion.setRequest(request);
-            deletion.setUser(user);
-
-            deletion.setDeletedAt(
-                    LocalDateTime.now(
-                            ZoneId.of("Asia/Kolkata")
-                    )
-            );
-
-            chatDeletions.save(deletion);
+            recipient =
+                    request.getAcceptedBy();
         }
 
-        // Notify chat page
+        // -----------------------------------------------------
+        // DONOR SENT MESSAGE
+        // → NOTIFY RECEIVER
+        // -----------------------------------------------------
+
+        else if (
+                request.getAcceptedBy() != null
+                        && request.getAcceptedBy()
+                        .getId()
+                        .equals(sender.getId())
+        ) {
+
+            recipient =
+                    request.getReceiver();
+        }
+
+        // -----------------------------------------------------
+        // NO RECIPIENT
+        // -----------------------------------------------------
+
+        if (recipient == null) {
+            return;
+        }
+
+        // -----------------------------------------------------
+        // CREATE NOTIFICATION
+        // -----------------------------------------------------
+
+        NotificationView notification =
+                new NotificationView(
+                        "CHAT_MESSAGE",
+                        request.getId(),
+                        sender.getId(),
+                        sender.getName(),
+                        message.getContent(),
+                        message.getCreatedAt()
+                );
+
+        // -----------------------------------------------------
+        // SEND TO RECIPIENT ONLY
+        // -----------------------------------------------------
+
+        broker.convertAndSend(
+                "/topic/notifications/" + recipient.getId(),
+                notification
+        );
+
+        System.out.println(
+                "NOTIFICATION SENT: "
+                        + sender.getName()
+                        + " -> "
+                        + recipient.getName()
+        );
+    }
+
+
+    // =========================================================
+    // DELETE / UNSEND MESSAGE
+    // =========================================================
+
+    @DeleteMapping("/{messageId}")
+    @Transactional
+    public ResponseEntity<?> deleteMessage(
+            @PathVariable Long messageId
+    ) {
+
+        Message message =
+                messageRepository.findById(messageId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Message not found"
+                                )
+                        );
+
+        Long requestId =
+                message.getRequest().getId();
+
+        MessageView deleted =
+                MessageView.deleted(message);
+
+        messageRepository.delete(message);
+
+        // -----------------------------------------------------
+        // BROADCAST DELETED MESSAGE
+        // -----------------------------------------------------
+
         broker.convertAndSend(
                 "/topic/requests/" + requestId,
-
-                new MessageView(
-
-                        null,
-
-                        requestId,
-
-                        userId,
-
-                        user.getName(),
-
-                        user.getRole().name(),
-
-                        null,
-
-                        LocalDateTime.now(
-                                ZoneId.of("Asia/Kolkata")
-                        ),
-
-                        "CHAT_DELETED",
-
-                        null,
-
-                        null,
-
-                        null
-                )
+                deleted
         );
+
+        return ResponseEntity.ok().build();
     }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { indiaLocations } from "../data/indiaLocations";
 import { useApp } from "../context/AppContext";
@@ -7,20 +7,64 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 function ReceiverDashboard() {
   const navigate = useNavigate();
-  const { createRequest, logout, currentUser } = useApp();
 
-  // Patient
+  const {
+    createRequest,
+    logout,
+    currentUser,
+    notifications,
+    setNotifications,
+  } = useApp();
+
+  // =========================================================
+  // NOTIFICATIONS
+  // =========================================================
+
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationsViewed, setNotificationsViewed] = useState(false);
+
+  const previousNotificationSignature = useRef("");
+
+  useEffect(() => {
+    const signature = (notifications || [])
+      .map(
+        (notification) =>
+          `${notification.requestId}-${notification.senderId}-${notification.createdAt}-${notification.message}`
+      )
+      .join("|");
+
+    if (
+      signature &&
+      signature !== previousNotificationSignature.current &&
+      notificationsViewed
+    ) {
+      setNotificationsViewed(false);
+    }
+
+    previousNotificationSignature.current = signature;
+  }, [notifications, notificationsViewed]);
+
+  // =========================================================
+  // PATIENT
+  // =========================================================
+
   const [patientName, setPatientName] = useState("");
   const [patientAge, setPatientAge] = useState("");
   const [bloodGroup, setBloodGroup] = useState("");
 
-  // Hospital
+  // =========================================================
+  // HOSPITAL
+  // =========================================================
+
   const [state, setState] = useState("");
   const [district, setDistrict] = useState("");
   const [hospitalName, setHospitalName] = useState("");
   const [hospitalAddress, setHospitalAddress] = useState("");
 
-  // Location
+  // =========================================================
+  // LOCATION
+  // =========================================================
+
   const [locationType, setLocationType] = useState("address");
   const [location, setLocation] = useState("");
   const [latitude, setLatitude] = useState(null);
@@ -29,7 +73,10 @@ function ReceiverDashboard() {
 
   const [error, setError] = useState("");
 
-  // Previous patient / blood requests
+  // =========================================================
+  // PREVIOUS PATIENT / BLOOD REQUESTS
+  // =========================================================
+
   const [patients, setPatients] = useState([]);
   const [patientsLoading, setPatientsLoading] = useState(true);
   const [showPatients, setShowPatients] = useState(false);
@@ -209,7 +256,7 @@ function ReceiverDashboard() {
 
       setError(
         error.message ||
-        "Unable to create blood request."
+          "Unable to create blood request."
       );
     }
   };
@@ -219,6 +266,21 @@ function ReceiverDashboard() {
 
   const findEmergencyDonors = () =>
     submitRequest(true);
+
+  // =========================================================
+  // NOTIFICATION HANDLERS
+  // =========================================================
+
+  const handleNotificationClick = () => {
+    setShowNotifications(true);
+    setNotificationsViewed(true);
+  };
+
+  const handleClearNotifications = () => {
+    setNotifications([]);
+    setShowNotifications(false);
+    setNotificationsViewed(true);
+  };
 
   // =========================================================
   // VIEW EXISTING PATIENT'S DONORS
@@ -232,6 +294,10 @@ function ReceiverDashboard() {
     });
   };
 
+  // =========================================================
+  // UI
+  // =========================================================
+
   return (
     <main className="dashboard-page">
 
@@ -240,34 +306,132 @@ function ReceiverDashboard() {
       ===================================================== */}
 
       <div className="dashboard-header">
-        <span className="hero-label">
-          BLOOD REQUEST
-        </span>
 
-        <h1>
-          Find a blood donor near you.
-        </h1>
+        <div>
+          <span className="hero-label">
+            BLOOD REQUEST
+          </span>
 
-        <p>
-          Tell us where help is needed and we'll
-          help you find nearby donors.
-        </p>
+          <h1>
+            Find a blood donor near you.
+          </h1>
+
+          <p>
+            Tell us where help is needed and we'll
+            help you find nearby donors.
+          </p>
+        </div>
+
+        <div className="receiver-header-actions">
+
+          {/* =================================================
+              NOTIFICATION BUTTON
+          ================================================= */}
+
+          <button
+            type="button"
+            className="notification-button"
+            onClick={handleNotificationClick}
+          >
+            🔔
+
+            {notifications?.length > 0 &&
+              !notificationsViewed && (
+                <span className="notification-count">
+                  {notifications.length}
+                </span>
+              )}
+          </button>
+
+          {/* =================================================
+              NOTIFICATION DROPDOWN
+          ================================================= */}
+
+          {showNotifications && (
+            <div className="notification-dropdown">
+
+              <div className="notification-dropdown-header">
+
+                <strong>
+                  Notifications
+                </strong>
+
+                {notifications?.length > 0 && (
+                  <button
+                    type="button"
+                    className="clear-notifications"
+                    onClick={handleClearNotifications}
+                  >
+                    Clear
+                  </button>
+                )}
+
+              </div>
+
+              {notifications?.length === 0 ? (
+
+                <p className="no-notifications">
+                  No new notifications
+                </p>
+
+              ) : (
+
+                notifications.map(
+                  (notification, index) => (
+                    <div
+                      className="notification-item"
+                      key={
+                        notification.requestId +
+                        "-" +
+                        notification.senderId +
+                        "-" +
+                        notification.createdAt +
+                        "-" +
+                        index
+                      }
+                    >
+
+                      <strong>
+                        {notification.senderName}
+                      </strong>
+
+                      <p>
+                        {notification.message}
+                      </p>
+
+                    </div>
+                  )
+                )
+
+              )}
+
+            </div>
+          )}
+
+          {/* =================================================
+              LOGOUT
+          ================================================= */}
+
+          <button
+            type="button"
+            className="logout-button"
+            onClick={() => {
+              logout();
+
+              navigate(
+                "/receiver-login",
+                {
+                  replace: true,
+                }
+              );
+            }}
+          >
+            Logout
+          </button>
+
+        </div>
+
       </div>
-
-      {/* LOGOUT */}
-
-      <button
-        type="button"
-        className="logout-button"
-        onClick={() => {
-          logout();
-          navigate("/receiver-login", {
-            replace: true,
-          });
-        }}
-      >
-        Logout
-      </button>
 
       {/* =====================================================
           PATIENT DETAILS
@@ -282,8 +446,13 @@ function ReceiverDashboard() {
           </div>
 
           <div>
-            <h2>Patient Details</h2>
-            <p>Tell us who needs blood.</p>
+            <h2>
+              Patient Details
+            </h2>
+
+            <p>
+              Tell us who needs blood.
+            </p>
           </div>
 
         </div>
@@ -396,7 +565,10 @@ function ReceiverDashboard() {
           </div>
 
           <div>
-            <h2>Hospital Details</h2>
+            <h2>
+              Hospital Details
+            </h2>
+
             <p>
               Where should the donor reach?
             </p>
@@ -610,7 +782,9 @@ function ReceiverDashboard() {
 
       </section>
 
-      {/* ERROR */}
+      {/* =====================================================
+          ERROR
+      ===================================================== */}
 
       {error && (
         <p className="form-error">
@@ -618,7 +792,9 @@ function ReceiverDashboard() {
         </p>
       )}
 
-      {/* FIND NEARBY DONORS */}
+      {/* =====================================================
+          FIND NEARBY DONORS
+      ===================================================== */}
 
       <button
         type="button"
@@ -668,23 +844,29 @@ function ReceiverDashboard() {
       {/* =====================================================
           MY PATIENTS
       ===================================================== */}
-      {/* =====================================================
-    MY PATIENTS
-===================================================== */}
 
       <section className="form-card">
 
         <div
           className="section-heading"
-          onClick={() => setShowPatients(!showPatients)}
-          style={{ cursor: "pointer" }}
+          onClick={() =>
+            setShowPatients(!showPatients)
+          }
+          style={{
+            cursor: "pointer",
+          }}
         >
 
           <div className="section-number">
             03
           </div>
 
-          <div style={{ flex: 1 }}>
+          <div
+            style={{
+              flex: 1,
+            }}
+          >
+
             <h2>
               My Patients
             </h2>
@@ -692,6 +874,7 @@ function ReceiverDashboard() {
             <p>
               Blood requests you have added so far.
             </p>
+
           </div>
 
           <button
@@ -699,17 +882,26 @@ function ReceiverDashboard() {
             className="expand-button"
             onClick={(e) => {
               e.stopPropagation();
-              setShowPatients(!showPatients);
+
+              setShowPatients(
+                !showPatients
+              );
             }}
           >
-            {showPatients ? "▲ Collapse" : "▼ Expand"}
+            {showPatients
+              ? "▲ Collapse"
+              : "▼ Expand"}
           </button>
 
         </div>
 
         {showPatients && (
 
-          <div style={{ marginTop: "20px" }}>
+          <div
+            style={{
+              marginTop: "20px",
+            }}
+          >
 
             {patientsLoading ? (
 
@@ -811,7 +1003,9 @@ function ReceiverDashboard() {
                         type="button"
                         className="chat-button"
                         onClick={() =>
-                          viewNearbyDonors(patient.id)
+                          viewNearbyDonors(
+                            patient.id
+                          )
                         }
                       >
                         Find Donors

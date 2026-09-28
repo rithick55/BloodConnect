@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 const STORAGE_KEY = "bloodconnect-state-v2";
 const API_URL = import.meta.env.VITE_API_URL;
@@ -208,6 +210,7 @@ export function AppProvider({ children }) {
   };
 
   const [state, setState] = useState(loadState);
+  const [notifications, setNotifications] = useState([]);
 
   // Save state whenever it changes
   useEffect(() => {
@@ -504,14 +507,14 @@ export function AppProvider({ children }) {
   };
 
   const logout = () => {
-  localStorage.removeItem("bloodconnect_token");
-  localStorage.removeItem("bloodconnect_user");
+    localStorage.removeItem("bloodconnect_token");
+    localStorage.removeItem("bloodconnect_user");
 
-  setState((current) => ({
-    ...current,
-    session: null,
-  }));
-};
+    setState((current) => ({
+      ...current,
+      session: null,
+    }));
+  };
 
   const currentUser = useMemo(() => {
     if (!state.session) return null;
@@ -524,6 +527,86 @@ export function AppProvider({ children }) {
     );
   }, [state.session, state.users]);
 
+  // =========================================================
+// GLOBAL NOTIFICATIONS WEBSOCKET
+// =========================================================
+
+useEffect(() => {
+  if (!currentUser?.id) {
+    return;
+  }
+
+  const wsBaseUrl = API_URL.replace(
+    /\/api\/?$/,
+    ""
+  );
+
+  const client = new Client({
+    webSocketFactory: () =>
+      new SockJS(`${wsBaseUrl}/ws`),
+
+    reconnectDelay: 5000,
+
+    onConnect: () => {
+      console.log(
+        "Notification WebSocket connected for user:",
+        currentUser.id
+      );
+
+      client.subscribe(
+        `/topic/notifications/${currentUser.id}`,
+        (message) => {
+          try {
+            const notification =
+              JSON.parse(message.body);
+
+            console.log(
+              "New notification:",
+              notification
+            );
+
+            setNotifications((current) => [
+              notification,
+              ...current,
+            ]);
+          } catch (error) {
+            console.error(
+              "Unable to read notification:",
+              error
+            );
+          }
+        }
+      );
+    },
+
+    onDisconnect: () => {
+      console.log(
+        "Notification WebSocket disconnected"
+      );
+    },
+
+    onStompError: (frame) => {
+      console.error(
+        "Notification STOMP error:",
+        frame
+      );
+    },
+
+    onWebSocketError: (error) => {
+      console.error(
+        "Notification WebSocket error:",
+        error
+      );
+    },
+  });
+
+  client.activate();
+
+  return () => {
+    client.deactivate();
+  };
+}, [currentUser?.id]);
+
   // Create blood request
   const createRequest = async (request) => {
     if (!currentUser) {
@@ -533,7 +616,7 @@ export function AppProvider({ children }) {
     }
 
     const response = await fetch(
-     `${API_URL}/requests?receiverId=${currentUser.id}`,
+      `${API_URL}/requests?receiverId=${currentUser.id}`,
       {
         method: "POST",
 
@@ -1046,7 +1129,8 @@ export function AppProvider({ children }) {
     ...state,
 
     currentUser,
-
+    notifications,
+    setNotifications,
     register,
     addRegisteredUser,
     login,

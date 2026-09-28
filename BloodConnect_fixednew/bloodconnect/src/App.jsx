@@ -97,11 +97,44 @@ function ProtectedRoute({ role, children }) {
 }
 
 function AppRoutes() {
+  const { session } = useApp();
+  const location = useLocation();
+
+  const admin = localStorage.getItem("bloodconnectAdmin");
+  const adminUser = admin ? JSON.parse(admin) : null;
+
+  const role = session?.role?.toLowerCase();
+
   return (
     <div className="app">
       <nav className="navbar">
-        <Link to="/" className="logo"><span className="logo-icon">🩸</span>BloodConnect</Link>
-        <div className="nav-right"><Link to="/login" className="nav-login">Login</Link></div>
+        <Link to="/" className="logo">
+          <span className="logo-icon">🩸</span>BloodConnect
+        </Link>
+
+        <div className="nav-right">
+          {location.pathname === "/" ? (
+            <Link to="/login" className="nav-login">
+              Login
+            </Link>
+          ) : role === "receiver" ? (
+            <span className="nav-slogan">
+              Find Blood. Save Lives.
+            </span>
+          ) : role === "donor" ? (
+            <span className="nav-slogan">
+              Be a Hero. Donate Blood.
+            </span>
+          ) : adminUser ? (
+            <span className="nav-slogan">
+              Together, We Save.
+            </span>
+          ) : (
+            <Link to="/login" className="nav-login">
+              Login
+            </Link>
+          )}
+        </div>
       </nav>
       <Routes>
         <Route path="/" element={<Home />} />

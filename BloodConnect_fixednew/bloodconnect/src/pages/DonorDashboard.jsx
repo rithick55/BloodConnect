@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
@@ -13,6 +13,8 @@ function DonorDashboard() {
     updateDonorAvailability,
     updateDonorLocation,
     logout,
+    notifications,
+    setNotifications,
   } = useApp();
 
   const [donor, setDonor] = useState(null);
@@ -22,6 +24,39 @@ function DonorDashboard() {
   const [locationMessage, setLocationMessage] = useState("");
   const [donorRank, setDonorRank] = useState(null);
 
+  // Notifications
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationsViewed, setNotificationsViewed] = useState(false);
+
+  const previousNotificationSignature = useRef("");
+
+  // =========================================================
+  // DETECT NEW NOTIFICATIONS
+  // =========================================================
+
+  useEffect(() => {
+    const signature = (notifications || [])
+      .map(
+        (notification) =>
+          `${notification.requestId}-${notification.senderId}-${notification.createdAt}-${notification.message}`
+      )
+      .join("|");
+
+    if (
+      signature &&
+      signature !== previousNotificationSignature.current &&
+      notificationsViewed
+    ) {
+      setNotificationsViewed(false);
+    }
+
+    previousNotificationSignature.current = signature;
+  }, [notifications, notificationsViewed]);
+
+  // =========================================================
+  // LOAD DONOR
+  // =========================================================
+
   useEffect(() => {
     const savedUser = localStorage.getItem("bloodconnect_user");
 
@@ -30,23 +65,38 @@ function DonorDashboard() {
         const user = JSON.parse(savedUser);
         setDonor(user);
       } catch (error) {
-        console.error("Unable to read logged-in user:", error);
+        console.error(
+          "Unable to read logged-in user:",
+          error
+        );
       }
     }
   }, []);
+
+  // =========================================================
+  // LOAD ACTIVE REQUESTS
+  // =========================================================
 
   useEffect(() => {
     const loadRequests = async () => {
       try {
         await loadActiveRequests();
       } catch (error) {
-        console.error("Unable to load donor requests:", error);
+        console.error(
+          "Unable to load donor requests:",
+          error
+        );
       }
     };
 
     loadRequests();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // =========================================================
+  // LOAD DONOR RANK
+  // =========================================================
 
   useEffect(() => {
     const loadDonorRank = async () => {
@@ -58,52 +108,74 @@ function DonorDashboard() {
         );
 
         if (!response.ok) {
-          throw new Error("Unable to load donor ranking.");
+          throw new Error(
+            "Unable to load donor ranking."
+          );
         }
 
         const donors = await response.json();
 
-        const rank = donors.findIndex(
-          (item) => item.id === donor.id
-        ) + 1;
+        const rank =
+          donors.findIndex(
+            (item) => item.id === donor.id
+          ) + 1;
 
         if (rank > 0) {
           setDonorRank(rank);
         }
       } catch (error) {
-        console.error("Unable to load donor rank:", error);
+        console.error(
+          "Unable to load donor rank:",
+          error
+        );
       }
     };
 
     loadDonorRank();
   }, [donor?.id]);
 
+  // =========================================================
+  // SESSION CHECK
+  // =========================================================
 
-  // If no user is logged in
   if (!donor) {
     return (
       <main className="auth-page">
         <div className="auth-card">
-          <div className="auth-header">
-            <span className="auth-icon">❤️</span>
 
-            <h1>Session Expired</h1>
+          <div className="auth-header">
+
+            <span className="auth-icon">
+              ❤️
+            </span>
+
+            <h1>
+              Session Expired
+            </h1>
 
             <p>
               Please login again to access your donor dashboard.
             </p>
+
           </div>
 
           <button
             className="auth-button"
-            onClick={() => navigate("/donor-login")}
+            onClick={() =>
+              navigate("/donor-login")
+            }
           >
             Go to Login
           </button>
+
         </div>
       </main>
     );
   }
+
+  // =========================================================
+  // MATCHING REQUESTS
+  // =========================================================
 
   const matchingRequests = requests.filter(
     (request) =>
@@ -111,13 +183,38 @@ function DonorDashboard() {
       request.bloodGroup === donor.bloodGroup
   );
 
+  // =========================================================
+  // LOGOUT
+  // =========================================================
+
   const handleLogout = () => {
-    localStorage.removeItem("bloodconnect_user");
+    localStorage.removeItem(
+      "bloodconnect_user"
+    );
 
     logout();
 
     navigate("/login");
   };
+
+  // =========================================================
+  // NOTIFICATION HANDLERS
+  // =========================================================
+
+  const handleNotificationClick = () => {
+    setShowNotifications(true);
+    setNotificationsViewed(true);
+  };
+
+  const handleClearNotifications = () => {
+    setNotifications([]);
+    setShowNotifications(false);
+    setNotificationsViewed(true);
+  };
+
+  // =========================================================
+  // UPDATE LOCATION
+  // =========================================================
 
   const handleUpdateLocation = () => {
     if (locationLoading) return;
@@ -127,14 +224,20 @@ function DonorDashboard() {
     setError("");
 
     if (!navigator.geolocation) {
-      setError("Location is not supported by your browser.");
+      setError(
+        "Location is not supported by your browser."
+      );
+
       setLocationLoading(false);
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const { latitude, longitude } = position.coords;
+        const {
+          latitude,
+          longitude,
+        } = position.coords;
 
         const updatedDonor = {
           ...donor,
@@ -149,25 +252,36 @@ function DonorDashboard() {
           JSON.stringify(updatedDonor)
         );
 
-        // Save location in AppContext
-        updateDonorLocation(latitude, longitude);
+        updateDonorLocation(
+          latitude,
+          longitude
+        );
 
-        setLocationMessage("Your current location has been updated.");
+        setLocationMessage(
+          "Your current location has been updated."
+        );
+
         setLocationLoading(false);
       },
       () => {
         setError(
           "Unable to get your location. Please allow location access."
         );
+
         setLocationLoading(false);
       }
     );
   };
 
+  // =========================================================
+  // UPDATE AVAILABILITY
+  // =========================================================
+
   const handleAvailability = async () => {
     if (availabilityLoading) return;
 
-    const newAvailability = !donor.available;
+    const newAvailability =
+      !donor.available;
 
     setAvailabilityLoading(true);
     setError("");
@@ -184,11 +298,11 @@ function DonorDashboard() {
 
       if (!response.ok) {
         throw new Error(
-          data.error || "Unable to update availability."
+          data.error ||
+            "Unable to update availability."
         );
       }
 
-      // Use the data returned by the backend
       const updatedDonor = {
         ...donor,
         available: data.available,
@@ -196,56 +310,168 @@ function DonorDashboard() {
 
       setDonor(updatedDonor);
 
-      // Keep login/session information updated
       localStorage.setItem(
         "bloodconnect_user",
         JSON.stringify(updatedDonor)
       );
 
-      // Keep existing AppContext functionality
-      updateDonorAvailability(data.available);
+      updateDonorAvailability(
+        data.available
+      );
+
     } catch (error) {
-      console.error("Availability update error:", error);
+      console.error(
+        "Availability update error:",
+        error
+      );
+
       setError(
         error.message ||
-        "Unable to update availability. Please try again."
+          "Unable to update availability. Please try again."
       );
+
     } finally {
       setAvailabilityLoading(false);
     }
   };
 
+  // =========================================================
+  // UI
+  // =========================================================
+
   return (
     <main className="donor-dashboard">
 
-      {/* HEADER */}
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
+
       <div className="donor-dashboard-header">
 
         <div className="donor-header-content">
+
           <span className="hero-label">
             DONOR DASHBOARD
           </span>
 
           <h1>
-            Welcome, {donor.name.split(" ")[0]} 👋
+            Welcome,{" "}
+            {donor.name.split(" ")[0]} 👋
           </h1>
 
           <p>
             Your availability can help save a life.
           </p>
+
         </div>
 
-        <button
-          className="admin-logout donor-logout"
-          onClick={handleLogout}
-        >
-          🚪 Logout
-        </button>
+        <div className="donor-header-actions">
+
+          {/* =================================================
+              NOTIFICATION BUTTON
+          ================================================= */}
+
+          <button
+            type="button"
+            className="notification-button"
+            onClick={handleNotificationClick}
+          >
+            🔔
+
+            {notifications?.length > 0 &&
+              !notificationsViewed && (
+                <span className="notification-count">
+                  {notifications.length}
+                </span>
+              )}
+          </button>
+
+          {/* =================================================
+              NOTIFICATION DROPDOWN
+          ================================================= */}
+
+          {showNotifications && (
+            <div className="notification-dropdown">
+
+              <div className="notification-dropdown-header">
+
+                <strong>
+                  Notifications
+                </strong>
+
+                {notifications?.length > 0 && (
+                  <button
+                    type="button"
+                    className="clear-notifications"
+                    onClick={
+                      handleClearNotifications
+                    }
+                  >
+                    Clear
+                  </button>
+                )}
+
+              </div>
+
+              {notifications?.length === 0 ? (
+
+                <p className="no-notifications">
+                  No new notifications
+                </p>
+
+              ) : (
+
+                notifications.map(
+                  (notification, index) => (
+                    <div
+                      className="notification-item"
+                      key={
+                        notification.requestId +
+                        "-" +
+                        notification.senderId +
+                        "-" +
+                        notification.createdAt +
+                        "-" +
+                        index
+                      }
+                    >
+
+                      <strong>
+                        {notification.senderName}
+                      </strong>
+
+                      <p>
+                        {notification.message}
+                      </p>
+
+                    </div>
+                  )
+                )
+
+              )}
+
+            </div>
+          )}
+
+          {/* =================================================
+              LOGOUT
+          ================================================= */}
+
+          <button
+            className="admin-logout donor-logout"
+            onClick={handleLogout}
+          >
+            🚪 Logout
+          </button>
+
+        </div>
 
       </div>
 
+      {/* =====================================================
+          AVAILABILITY
+      ===================================================== */}
 
-      {/* AVAILABILITY */}
       <section className="availability-card">
 
         <div className="availability-content">
@@ -255,6 +481,7 @@ function DonorDashboard() {
           </div>
 
           <div>
+
             <span className="card-label">
               DONATION STATUS
             </span>
@@ -276,10 +503,10 @@ function DonorDashboard() {
                 {error}
               </p>
             )}
+
           </div>
 
         </div>
-
 
         <button
           className={
@@ -290,6 +517,7 @@ function DonorDashboard() {
           onClick={handleAvailability}
           disabled={availabilityLoading}
         >
+
           <span className="toggle-dot"></span>
 
           {availabilityLoading
@@ -297,12 +525,15 @@ function DonorDashboard() {
             : donor.available
               ? "Available"
               : "Unavailable"}
+
         </button>
 
       </section>
 
+      {/* =====================================================
+          DONOR LOCATION
+      ===================================================== */}
 
-      {/* DONOR INFORMATION */}
       <section className="availability-card">
 
         <div className="availability-content">
@@ -312,18 +543,21 @@ function DonorDashboard() {
           </div>
 
           <div>
+
             <span className="card-label">
               CURRENT LOCATION
             </span>
 
             <h2>
-              {donor.latitude && donor.longitude
+              {donor.latitude &&
+              donor.longitude
                 ? "Location Available"
                 : "Location Not Set"}
             </h2>
 
             <p>
-              {donor.latitude && donor.longitude
+              {donor.latitude &&
+              donor.longitude
                 ? `${donor.latitude.toFixed(4)}, ${donor.longitude.toFixed(4)}`
                 : "Update your location so receivers can find your distance accurately."}
             </p>
@@ -333,6 +567,7 @@ function DonorDashboard() {
                 {locationMessage}
               </p>
             )}
+
           </div>
 
         </div>
@@ -349,12 +584,16 @@ function DonorDashboard() {
 
       </section>
 
-      {/* REQUESTS */}
+      {/* =====================================================
+          REQUESTS
+      ===================================================== */}
+
       <section className="requests-section">
 
         <div className="section-title">
 
           <div>
+
             <span className="hero-label">
               NEARBY REQUESTS
             </span>
@@ -362,6 +601,7 @@ function DonorDashboard() {
             <h2>
               People who need your help
             </h2>
+
           </div>
 
           <span className="request-count">
@@ -370,83 +610,89 @@ function DonorDashboard() {
 
         </div>
 
-
         <div className="request-list">
 
-          {matchingRequests.map((request) => (
+          {matchingRequests.map(
+            (request) => (
 
-            <article
-              className="blood-request-card"
-              key={request.id}
-            >
+              <article
+                className="blood-request-card"
+                key={request.id}
+              >
 
-              <div className="request-main">
+                <div className="request-main">
 
-                <div className="request-blood">
-                  {request.bloodGroup}
-                </div>
+                  <div className="request-blood">
+                    {request.bloodGroup}
+                  </div>
 
+                  <div className="request-details">
 
-                <div className="request-details">
+                    <div className="request-name-row">
 
-                  <div className="request-name-row">
+                      <h3>
+                        Blood needed for{" "}
+                        {request.patientName}
+                      </h3>
 
-                    <h3>
-                      Blood needed for{" "}
-                      {request.patientName}
-                    </h3>
+                      {request.urgent && (
+                        <span className="urgent-badge">
+                          Urgent
+                        </span>
+                      )}
 
-                    {request.urgent && (
-                      <span className="urgent-badge">
-                        Urgent
-                      </span>
-                    )}
+                    </div>
+
+                    <p>
+                      🏥{" "}
+                      {request.hospitalName}
+                    </p>
+
+                    <p>
+                      📍{" "}
+                      {request.district}
+                    </p>
+
+                    <span className="request-distance">
+                      {donor.district ===
+                      request.district
+                        ? "Nearby"
+                        : "Location match"}
+                    </span>
 
                   </div>
 
-
-                  <p>
-                    🏥 {request.hospitalName}
-                  </p>
-
-                  <p>
-                    📍 {request.district}
-                  </p>
-
-                  <span className="request-distance">
-                    {donor.district === request.district
-                      ? "Nearby"
-                      : "Location match"}
-                  </span>
-
                 </div>
 
-              </div>
+                <button
+                  className="view-request-button"
+                  onClick={() =>
+                    navigate(
+                      "/blood-request",
+                      {
+                        state: {
+                          requestId:
+                            request.id,
+                        },
+                      }
+                    )
+                  }
+                >
+                  View Request →
+                </button>
 
+              </article>
 
-              <button
-                className="view-request-button"
-                onClick={() =>
-                  navigate("/blood-request", {
-                    state: {
-                      requestId: request.id,
-                    },
-                  })
-                }
-              >
-                View Request →
-              </button>
-
-            </article>
-
-          ))}
-
+            )
+          )}
 
           {matchingRequests.length === 0 && (
 
             <div className="no-donors">
 
-              <div>🩸</div>
+              <div>
+                🩸
+              </div>
 
               <h2>
                 No active matching requests
@@ -465,11 +711,15 @@ function DonorDashboard() {
 
       </section>
 
+      {/* =====================================================
+          MESSAGES
+      ===================================================== */}
 
-      {/* MESSAGES */}
       <section
         className="donor-profile-link"
-        onClick={() => navigate("/chats")}
+        onClick={() =>
+          navigate("/chats")
+        }
       >
 
         <div className="profile-link-icon">
@@ -477,6 +727,7 @@ function DonorDashboard() {
         </div>
 
         <div>
+
           <span>
             MESSAGES
           </span>
@@ -488,6 +739,7 @@ function DonorDashboard() {
           <p>
             Reopen chats with receivers at any time.
           </p>
+
         </div>
 
         <strong>
@@ -496,13 +748,17 @@ function DonorDashboard() {
 
       </section>
 
+      {/* =====================================================
+          BOTTOM CARDS
+      ===================================================== */}
 
-      {/* BOTTOM CARDS */}
       <div className="donor-bottom-grid">
 
         <section
           className="donor-small-card clickable-card"
-          onClick={() => navigate("/leaderboard")}
+          onClick={() =>
+            navigate("/leaderboard")
+          }
         >
 
           <div className="small-card-icon">
@@ -510,16 +766,24 @@ function DonorDashboard() {
           </div>
 
           <div>
-            <strong>{donorRank ? `#${donorRank}` : "--"}</strong>
-            <span>Your Rank</span>
+
+            <strong>
+              {donorRank
+                ? `#${donorRank}`
+                : "--"}
+            </strong>
+
+            <span>
+              Your Rank
+            </span>
 
             <p>
               Keep donating to climb the leaderboard.
             </p>
+
           </div>
 
         </section>
-
 
         <section
           className="donor-profile-link"

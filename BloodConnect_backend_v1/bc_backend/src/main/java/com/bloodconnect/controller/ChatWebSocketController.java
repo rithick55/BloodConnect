@@ -20,11 +20,20 @@ public class ChatWebSocketController {
             @Payload WebSocketMessage payload
     ) {
 
+        System.out.println(
+                "WEBSOCKET RECEIVED: requestId="
+                        + requestId
+                        + ", senderId="
+                        + payload.senderId()
+                        + ", replyToId="
+                        + payload.replyToId()
+        );
+
         chat.saveAndBroadcast(
-            requestId,
-            payload.senderId(),
-            payload.content(),
-            payload.replyToId()
+                requestId,
+                payload.senderId(),
+                payload.content(),
+                payload.replyToId()
         );
     }
 

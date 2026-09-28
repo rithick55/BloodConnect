@@ -1,6 +1,7 @@
 package com.bloodconnect.controller;
 
 import com.bloodconnect.dto.BloodRequestView;
+import com.bloodconnect.dto.NotificationView;
 import com.bloodconnect.dto.RequestDtos.CreateRequest;
 import com.bloodconnect.entity.BloodRequest;
 import com.bloodconnect.entity.RequestStatus;
@@ -11,8 +12,10 @@ import com.bloodconnect.repository.UserRepository;
 
 import jakarta.validation.Valid;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -21,13 +24,16 @@ public class RequestController {
 
     private final BloodRequestRepository requests;
     private final UserRepository users;
+    private final SimpMessagingTemplate broker;
 
     public RequestController(
             BloodRequestRepository requests,
-            UserRepository users
+            UserRepository users,
+            SimpMessagingTemplate broker
     ) {
         this.requests = requests;
         this.users = users;
+        this.broker = broker;
     }
 
     @PostMapping
@@ -79,11 +85,16 @@ public class RequestController {
                 .map(BloodRequestView::from)
                 .toList();
     }
-    
+
     @GetMapping("/donor/{donorId}")
-    public List<BloodRequestView> donor(@PathVariable Long donorId) {
-        return requests.findByAcceptedByIdOrderByCreatedAtDesc(donorId)
-                .stream().map(BloodRequestView::from).toList();
+    public List<BloodRequestView> donor(
+            @PathVariable Long donorId
+    ) {
+        return requests
+                .findByAcceptedByIdOrderByCreatedAtDesc(donorId)
+                .stream()
+                .map(BloodRequestView::from)
+                .toList();
     }
 
     @GetMapping("/matching")
@@ -99,6 +110,10 @@ public class RequestController {
                 .map(BloodRequestView::from)
                 .toList();
     }
+
+    // =========================================================
+    // DONOR ACCEPTS BLOOD REQUEST
+    // =========================================================
 
     @PutMapping("/{requestId}/accept")
     public BloodRequestView accept(
@@ -124,18 +139,46 @@ public class RequestController {
 
         users.save(d);
 
+        /*
+         * Send notification to receiver
+         * when donor accepts the request.
+         */
+        if (r.getReceiver() != null) {
+
+            NotificationView notification = new NotificationView(
+                    "REQUEST_ACCEPTED",
+                    r.getId(),
+                    d.getId(),
+                    d.getName(),
+                    d.getName() + " accepted your blood request.",
+                    LocalDateTime.now()
+            );
+
+            broker.convertAndSend(
+                    "/topic/notifications/"
+                            + r.getReceiver().getId(),
+                    notification
+            );
+        }
+
         return BloodRequestView.from(
                 requests.save(r)
         );
     }
-    
+
+    // =========================================================
+    // CANCEL REQUEST
+    // =========================================================
+
     @PutMapping("/{requestId}/cancel")
     public BloodRequestView cancel(
             @PathVariable Long requestId
     ) {
         BloodRequest r = requests.findById(requestId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Blood request not found.")
+                        new IllegalArgumentException(
+                                "Blood request not found."
+                        )
                 );
 
         if (r.getStatus() == RequestStatus.COMPLETED) {
@@ -156,20 +199,30 @@ public class RequestController {
                 requests.save(r)
         );
     }
-    
+
+    // =========================================================
+    // RECEIVER CLICKS "RECEIVED BLOOD"
+    // =========================================================
+
     @PutMapping("/{requestId}/complete")
     public BloodRequestView complete(
             @PathVariable Long requestId,
             @RequestParam Long receiverId
     ) {
-        BloodRequest r = requests.findById(requestId)
+        BloodRequest r = requests
+                .findById(requestId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Blood request not found.")
+                        new IllegalArgumentException(
+                                "Blood request not found."
+                        )
                 );
 
-        User receiver = users.findById(receiverId)
+        User receiver = users
+                .findById(receiverId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Receiver not found.")
+                        new IllegalArgumentException(
+                                "Receiver not found."
+                        )
                 );
 
         if (!r.getReceiver().getId().equals(receiver.getId())) {
@@ -192,12 +245,38 @@ public class RequestController {
 
         User donor = r.getAcceptedBy();
 
-        donor.setDonations(donor.getDonations() + 1);
+        donor.setDonations(
+                donor.getDonations() + 1
+        );
 
-        r.setStatus(RequestStatus.COMPLETED);
+        r.setStatus(
+                RequestStatus.COMPLETED
+        );
+
+        /*
+         * Send notification to donor
+         * when receiver confirms that blood was received.
+         */
+        NotificationView notification = new NotificationView(
+                "BLOOD_RECEIVED",
+                r.getId(),
+                receiver.getId(),
+                receiver.getName(),
+                receiver.getName()
+                        + " confirmed that the blood was received.",
+                LocalDateTime.now()
+        );
+
+        broker.convertAndSend(
+                "/topic/notifications/"
+                        + donor.getId(),
+                notification
+        );
 
         users.save(donor);
 
-        return BloodRequestView.from(requests.save(r));
+        return BloodRequestView.from(
+                requests.save(r)
+        );
     }
 }
