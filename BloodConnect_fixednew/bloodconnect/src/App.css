@@ -5399,3 +5399,178 @@
 .conversation-arrow {
   font-size: 22px;
 }
+
+/* Conversation wrapper */
+.conversation-wrapper {
+  width: 100%;
+}
+
+/* Main conversation container */
+.conversation-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* Clickable conversation area */
+.conversation-main-button {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Avatar */
+.conversation-avatar {
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff1f2;
+  color: #dc2626;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+/* Conversation text */
+.conversation-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversation-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.conversation-top strong {
+  font-size: 18px;
+  color: #111827;
+}
+
+.conversation-top span {
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.conversation-content p {
+  margin: 0 0 5px;
+  color: #374151;
+  font-size: 15px;
+}
+
+.conversation-content small {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* Arrow */
+.conversation-arrow {
+  font-size: 25px;
+  color: #dc2626;
+  flex-shrink: 0;
+}
+
+/* Delete button */
+.delete-chat-button {
+  flex-shrink: 0;
+  border: none;
+  background: #fff1f2;
+  color: #dc2626;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-chat-button:hover {
+  background: #fee2e2;
+  transform: translateY(-1px);
+}
+
+.delete-chat-button:active {
+  transform: scale(0.97);
+}
+
+.delete-chat-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Hover effect for conversation */
+.conversation-card:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.conversation-main-button:hover .conversation-arrow {
+  transform: translateX(4px);
+}
+
+/* Conversation list */
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .conversation-card {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .conversation-main-button {
+    gap: 10px;
+  }
+
+  .conversation-avatar {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    font-size: 20px;
+  }
+
+  .conversation-top strong {
+    font-size: 16px;
+  }
+
+  .conversation-content p {
+    font-size: 14px;
+  }
+
+  .conversation-content small {
+    font-size: 12px;
+  }
+
+  .delete-chat-button {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .conversation-arrow {
+    display: none;
+  }
+}
