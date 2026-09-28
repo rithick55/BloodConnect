@@ -12,6 +12,7 @@ console.log("CHAT REQUESTS FROM CONTEXT:", requests);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
   if (!currentUser?.id || !currentUser?.role) {
@@ -127,6 +128,66 @@ console.log("CHAT REQUESTS FROM CONTEXT:", requests);
     }
   };
 
+  const deleteConversation = async (requestId) => {
+  if (!currentUser?.id) return;
+
+  const confirmed = window.confirm(
+    "Delete this conversation?\n\nThis will remove the chat messages from this conversation."
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    setDeletingId(requestId);
+
+    const response = await fetch(
+      `${API_URL}/chats/${requestId}/conversation?userId=${currentUser.id}`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text };
+      }
+
+      throw new Error(
+        data.message ||
+          "Unable to delete conversation."
+      );
+    }
+
+    // Remove from screen immediately
+    setConversations((current) =>
+      current.filter(
+        (request) => request.id !== requestId
+      )
+    );
+
+  } catch (error) {
+    console.error(
+      "Unable to delete conversation:",
+      error
+    );
+
+    alert(
+      error.message ||
+        "Unable to delete conversation."
+    );
+  } finally {
+    setDeletingId(null);
+  }
+};
+
   if (!currentUser) {
     return null;
   }
@@ -235,9 +296,27 @@ console.log("CHAT REQUESTS FROM CONTEXT:", requests);
 
                   </div>
 
-                  <strong className="conversation-arrow">
-                    →
-                  </strong>
+                  <div className="conversation-actions">
+
+  <button
+    type="button"
+    className="delete-chat-button"
+    disabled={deletingId === request.id}
+    onClick={(e) => {
+      e.stopPropagation();
+      deleteConversation(request.id);
+    }}
+  >
+    {deletingId === request.id
+      ? "Deleting..."
+      : "🗑"}
+  </button>
+
+  <strong className="conversation-arrow">
+    →
+  </strong>
+
+</div>
 
                 </button>
 
