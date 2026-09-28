@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { indiaLocations } from "../data/indiaLocations";
 import { useApp } from "../context/AppContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function ReceiverDashboard() {
   const navigate = useNavigate();
- const { createRequest, logout } = useApp();
+  const { createRequest, logout, currentUser } = useApp();
 
   // Patient
   const [patientName, setPatientName] = useState("");
@@ -27,16 +29,65 @@ function ReceiverDashboard() {
 
   const [error, setError] = useState("");
 
+  // Previous patient / blood requests
+  const [patients, setPatients] = useState([]);
+  const [patientsLoading, setPatientsLoading] = useState(true);
+  const [showPatients, setShowPatients] = useState(false);
+
   const states = Object.keys(indiaLocations);
 
   const districts = state
     ? indiaLocations[state]
     : [];
 
+  // =========================================================
+  // LOAD PREVIOUS PATIENTS / BLOOD REQUESTS
+  // =========================================================
+
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setPatientsLoading(false);
+      return;
+    }
+
+    const loadPatients = async () => {
+      try {
+        setPatientsLoading(true);
+
+        const response = await fetch(
+          `${API_URL}/requests/receiver/${currentUser.id}`
+        );
+
+        if (!response.ok) {
+          throw new Error("Unable to load your patients.");
+        }
+
+        const data = await response.json();
+
+        setPatients(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Unable to load patients:", error);
+        setPatients([]);
+      } finally {
+        setPatientsLoading(false);
+      }
+    };
+
+    loadPatients();
+  }, [currentUser?.id]);
+
+  // =========================================================
+  // STATE CHANGE
+  // =========================================================
+
   const handleStateChange = (e) => {
     setState(e.target.value);
     setDistrict("");
   };
+
+  // =========================================================
+  // GET CURRENT LOCATION
+  // =========================================================
 
   const getLocation = () => {
     setLocationError("");
@@ -67,6 +118,10 @@ function ReceiverDashboard() {
     );
   };
 
+  // =========================================================
+  // SUBMIT BLOOD REQUEST
+  // =========================================================
+
   const submitRequest = async (urgent = false) => {
     setError("");
 
@@ -81,8 +136,11 @@ function ReceiverDashboard() {
     }
 
     const age = Number(patientAge);
+
     if (!Number.isInteger(age) || age < 1 || age > 120) {
-      setError("Patient age must be between 1 and 120. Age 0 is not valid.");
+      setError(
+        "Patient age must be between 1 and 120. Age 0 is not valid."
+      );
       return;
     }
 
@@ -106,52 +164,80 @@ function ReceiverDashboard() {
       return;
     }
 
-    if (locationType === "address" && !hospitalAddress.trim()) {
+    if (
+      locationType === "address" &&
+      !hospitalAddress.trim()
+    ) {
       setError("Please enter the hospital address.");
       return;
     }
 
-    if (locationType === "current" && !location) {
+    if (
+      locationType === "current" &&
+      !location
+    ) {
       setError("Please allow your current location.");
       return;
     }
-    
 
-  try {
-  const request = await createRequest({
-    patientName: patientName.trim(),
-    patientAge: age,
-    bloodGroup,
-    state,
-    district,
-    hospitalName: hospitalName.trim(),
-    hospitalAddress: hospitalAddress.trim(),
-    locationType,
-    location: location || hospitalAddress.trim(),
-    latitude,
-    longitude,
-    urgent,
-  });
+    try {
+      const request = await createRequest({
+        patientName: patientName.trim(),
+        patientAge: age,
+        bloodGroup,
+        state,
+        district,
+        hospitalName: hospitalName.trim(),
+        hospitalAddress: hospitalAddress.trim(),
+        locationType,
+        location: location || hospitalAddress.trim(),
+        latitude,
+        longitude,
+        urgent,
+      });
 
-  navigate("/nearby-donors", {
-    state: {
-      requestId: request.id,
-    },
-  });
-} catch (error) {
-  console.error("Unable to create blood request:", error);
+      navigate("/nearby-donors", {
+        state: {
+          requestId: request.id,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Unable to create blood request:",
+        error
+      );
 
-  setError(
-    error.message || "Unable to create blood request."
-  );
-}
+      setError(
+        error.message ||
+        "Unable to create blood request."
+      );
+    }
   };
 
-  const findNearbyDonors = () => submitRequest(false);
-  const findEmergencyDonors = () => submitRequest(true);
+  const findNearbyDonors = () =>
+    submitRequest(false);
+
+  const findEmergencyDonors = () =>
+    submitRequest(true);
+
+  // =========================================================
+  // VIEW EXISTING PATIENT'S DONORS
+  // =========================================================
+
+  const viewNearbyDonors = (requestId) => {
+    navigate("/nearby-donors", {
+      state: {
+        requestId,
+      },
+    });
+  };
 
   return (
     <main className="dashboard-page">
+
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
       <div className="dashboard-header">
         <span className="hero-label">
@@ -167,26 +253,30 @@ function ReceiverDashboard() {
           help you find nearby donors.
         </p>
       </div>
-      <div className="dashboard-header">
-        ...
-      </div>
+
+      {/* LOGOUT */}
 
       <button
         type="button"
         className="logout-button"
         onClick={() => {
           logout();
-          navigate("/receiver-login", { replace: true });
+          navigate("/receiver-login", {
+            replace: true,
+          });
         }}
       >
         Logout
       </button>
 
-      {/* Patient Details */}
+      {/* =====================================================
+          PATIENT DETAILS
+      ===================================================== */}
 
       <section className="form-card">
 
         <div className="section-heading">
+
           <div className="section-number">
             01
           </div>
@@ -195,12 +285,16 @@ function ReceiverDashboard() {
             <h2>Patient Details</h2>
             <p>Tell us who needs blood.</p>
           </div>
+
         </div>
 
         <div className="form-grid">
 
           <div className="form-group">
-            <label>Patient Name</label>
+
+            <label>
+              Patient Name
+            </label>
 
             <input
               type="text"
@@ -210,10 +304,14 @@ function ReceiverDashboard() {
                 setPatientName(e.target.value)
               }
             />
+
           </div>
 
           <div className="form-group">
-            <label>Age</label>
+
+            <label>
+              Age
+            </label>
 
             <input
               type="number"
@@ -225,10 +323,14 @@ function ReceiverDashboard() {
                 setPatientAge(e.target.value)
               }
             />
+
           </div>
 
           <div className="form-group">
-            <label>Blood Group</label>
+
+            <label>
+              Blood Group
+            </label>
 
             <select
               value={bloodGroup}
@@ -236,43 +338,76 @@ function ReceiverDashboard() {
                 setBloodGroup(e.target.value)
               }
             >
+
               <option value="">
                 Select blood group
               </option>
 
-              <option value="A+">A+</option>
-              <option value="A-">A-</option>
-              <option value="B+">B+</option>
-              <option value="B-">B-</option>
-              <option value="AB+">AB+</option>
-              <option value="AB-">AB-</option>
-              <option value="O+">O+</option>
-              <option value="O-">O-</option>
+              <option value="A+">
+                A+
+              </option>
+
+              <option value="A-">
+                A-
+              </option>
+
+              <option value="B+">
+                B+
+              </option>
+
+              <option value="B-">
+                B-
+              </option>
+
+              <option value="AB+">
+                AB+
+              </option>
+
+              <option value="AB-">
+                AB-
+              </option>
+
+              <option value="O+">
+                O+
+              </option>
+
+              <option value="O-">
+                O-
+              </option>
+
             </select>
+
           </div>
 
         </div>
 
       </section>
 
-      {/* Hospital Details */}
+      {/* =====================================================
+          HOSPITAL DETAILS
+      ===================================================== */}
 
       <section className="form-card">
 
         <div className="section-heading">
+
           <div className="section-number">
             02
           </div>
 
           <div>
             <h2>Hospital Details</h2>
-            <p>Where should the donor reach?</p>
+            <p>
+              Where should the donor reach?
+            </p>
           </div>
+
         </div>
 
         <div className="form-grid">
 
           <div className="form-group">
+
             <label>
               State / Union Territory
             </label>
@@ -281,20 +416,29 @@ function ReceiverDashboard() {
               value={state}
               onChange={handleStateChange}
             >
+
               <option value="">
                 Select state or UT
               </option>
 
               {states.map((item) => (
-                <option key={item} value={item}>
+                <option
+                  key={item}
+                  value={item}
+                >
                   {item}
                 </option>
               ))}
+
             </select>
+
           </div>
 
           <div className="form-group">
-            <label>District</label>
+
+            <label>
+              District
+            </label>
 
             <select
               value={district}
@@ -303,6 +447,7 @@ function ReceiverDashboard() {
               }
               disabled={!state}
             >
+
               <option value="">
                 {state
                   ? "Select district"
@@ -310,15 +455,23 @@ function ReceiverDashboard() {
               </option>
 
               {districts.map((item) => (
-                <option key={item} value={item}>
+                <option
+                  key={item}
+                  value={item}
+                >
                   {item}
                 </option>
               ))}
+
             </select>
+
           </div>
 
           <div className="form-group full-width">
-            <label>Hospital Name</label>
+
+            <label>
+              Hospital Name
+            </label>
 
             <input
               type="text"
@@ -328,16 +481,21 @@ function ReceiverDashboard() {
                 setHospitalName(e.target.value)
               }
             />
+
           </div>
 
         </div>
 
-        {/* Location */}
+        {/* =================================================
+            LOCATION
+        ================================================= */}
 
         <div className="location-section">
 
           <div className="location-heading">
+
             <div>
+
               <label className="location-title">
                 Hospital Location
               </label>
@@ -346,7 +504,9 @@ function ReceiverDashboard() {
                 Choose how you want to provide
                 the location.
               </p>
+
             </div>
+
           </div>
 
           <div className="location-options">
@@ -364,8 +524,13 @@ function ReceiverDashboard() {
                 setLocationError("");
               }}
             >
-              <span>⌕</span>
+
+              <span>
+                ⌕
+              </span>
+
               Enter Address
+
             </button>
 
             <button
@@ -380,8 +545,13 @@ function ReceiverDashboard() {
                 getLocation();
               }}
             >
-              <span>📍</span>
+
+              <span>
+                📍
+              </span>
+
               Use My Location
+
             </button>
 
           </div>
@@ -398,7 +568,9 @@ function ReceiverDashboard() {
                 rows="4"
                 value={hospitalAddress}
                 onChange={(e) =>
-                  setHospitalAddress(e.target.value)
+                  setHospitalAddress(
+                    e.target.value
+                  )
                 }
               />
 
@@ -413,6 +585,7 @@ function ReceiverDashboard() {
               </div>
 
               <div>
+
                 <strong>
                   Current location
                 </strong>
@@ -421,6 +594,7 @@ function ReceiverDashboard() {
                   {location ||
                     "Getting your location..."}
                 </p>
+
               </div>
 
             </div>
@@ -436,11 +610,15 @@ function ReceiverDashboard() {
 
       </section>
 
+      {/* ERROR */}
+
       {error && (
         <p className="form-error">
           {error}
         </p>
       )}
+
+      {/* FIND NEARBY DONORS */}
 
       <button
         type="button"
@@ -450,16 +628,20 @@ function ReceiverDashboard() {
         Find Nearby Donors
       </button>
 
-      {/* Emergency */}
+      {/* =====================================================
+          EMERGENCY
+      ===================================================== */}
 
       <section className="emergency-card">
 
         <div>
+
           <span className="emergency-icon">
             🚨
           </span>
 
           <div>
+
             <h2>
               Need blood urgently?
             </h2>
@@ -468,7 +650,9 @@ function ReceiverDashboard() {
               Find the closest available donors
               quickly.
             </p>
+
           </div>
+
         </div>
 
         <button
@@ -481,40 +665,250 @@ function ReceiverDashboard() {
 
       </section>
 
-      <section
-        className="donor-profile-link"
-        onClick={() => navigate("/chats")}
-      >
-        <div className="profile-link-icon">💬</div>
-        <div>
-          <span>MESSAGES</span>
-          <h2>View your conversations with donors</h2>
-          <p>Reopen previous chats even after leaving the chat screen.</p>
+      {/* =====================================================
+          MY PATIENTS
+      ===================================================== */}
+      {/* =====================================================
+    MY PATIENTS
+===================================================== */}
+
+      <section className="form-card">
+
+        <div
+          className="section-heading"
+          onClick={() => setShowPatients(!showPatients)}
+          style={{ cursor: "pointer" }}
+        >
+
+          <div className="section-number">
+            03
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <h2>
+              My Patients
+            </h2>
+
+            <p>
+              Blood requests you have added so far.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="expand-button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowPatients(!showPatients);
+            }}
+          >
+            {showPatients ? "▲ Collapse" : "▼ Expand"}
+          </button>
+
         </div>
-        <strong>→</strong>
+
+        {showPatients && (
+
+          <div style={{ marginTop: "20px" }}>
+
+            {patientsLoading ? (
+
+              <div className="no-donors">
+
+                <div>
+                  🩸
+                </div>
+
+                <h2>
+                  Loading patients...
+                </h2>
+
+                <p>
+                  Please wait while we load
+                  your blood requests.
+                </p>
+
+              </div>
+
+            ) : patients.length === 0 ? (
+
+              <div className="no-donors">
+
+                <div>
+                  🩸
+                </div>
+
+                <h2>
+                  No patients added yet
+                </h2>
+
+                <p>
+                  Your blood requests will appear
+                  here after you add a patient.
+                </p>
+
+              </div>
+
+            ) : (
+
+              <div className="donor-list">
+
+                {patients.map((patient) => (
+
+                  <article
+                    className="donor-card"
+                    key={patient.id}
+                  >
+
+                    <div className="donor-main">
+
+                      <div className="donor-avatar">
+
+                        {patient.patientName
+                          ?.charAt(0)
+                          ?.toUpperCase()}
+
+                      </div>
+
+                      <div className="donor-info">
+
+                        <div className="donor-name-row">
+
+                          <h2>
+                            {patient.patientName}
+                          </h2>
+
+                          <span className="availability available">
+                            {patient.status}
+                          </span>
+
+                        </div>
+
+                        <p>
+                          Age: {patient.patientAge}
+                        </p>
+
+                        <span className="donor-distance">
+                          🩸 {patient.bloodGroup}
+                        </span>
+
+                        <span className="donor-distance">
+                          🏥 {patient.hospitalName}
+                        </span>
+
+                        <span className="donor-distance">
+                          📍 {patient.district},{" "}
+                          {patient.state}
+                        </span>
+
+                      </div>
+
+                    </div>
+
+                    <div className="donor-actions">
+
+                      <button
+                        type="button"
+                        className="chat-button"
+                        onClick={() =>
+                          viewNearbyDonors(patient.id)
+                        }
+                      >
+                        Find Donors
+                      </button>
+
+                    </div>
+
+                  </article>
+
+                ))}
+
+              </div>
+
+            )}
+
+          </div>
+
+        )}
+
       </section>
+
+      {/* =====================================================
+          MESSAGES
+      ===================================================== */}
 
       <section
         className="donor-profile-link"
-        onClick={() => navigate("/receiver-profile")}
+        onClick={() =>
+          navigate("/chats")
+        }
       >
+
+        <div className="profile-link-icon">
+          💬
+        </div>
+
+        <div>
+
+          <span>
+            MESSAGES
+          </span>
+
+          <h2>
+            View your conversations
+            with donors
+          </h2>
+
+          <p>
+            Reopen previous chats even
+            after leaving the chat screen.
+          </p>
+
+        </div>
+
+        <strong>
+          →
+        </strong>
+
+      </section>
+
+      {/* =====================================================
+          PROFILE
+      ===================================================== */}
+
+      <section
+        className="donor-profile-link"
+        onClick={() =>
+          navigate("/receiver-profile")
+        }
+      >
+
         <div className="profile-link-icon">
           👤
         </div>
 
         <div>
-          <span>MY PROFILE</span>
+
+          <span>
+            MY PROFILE
+          </span>
 
           <h2>
-            View and manage your receiver profile
+            View and manage your
+            receiver profile
           </h2>
 
           <p>
-            Update your personal information and location.
+            Update your personal information
+            and location.
           </p>
+
         </div>
 
-        <strong>→</strong>
+        <strong>
+          →
+        </strong>
+
       </section>
 
     </main>

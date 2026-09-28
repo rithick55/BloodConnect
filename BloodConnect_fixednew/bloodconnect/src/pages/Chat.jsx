@@ -633,15 +633,11 @@ function Chat() {
 
           <button
             className="find-donors-button"
-            onClick={() =>
-              navigate(
-                currentUser?.role === "donor"
-                  ? "/donor-dashboard"
-                  : "/receiver-dashboard"
-              )
-            }
+            onClick={() => navigate("/nearby-donors", {
+              state: { requestId }
+            })}
           >
-            Go to Dashboard
+            ← Go Back
           </button>
 
         </div>
@@ -683,15 +679,11 @@ function Chat() {
 
           <button
             className="find-donors-button"
-            onClick={() =>
-              navigate(
-                currentUser?.role === "donor"
-                  ? "/donor-dashboard"
-                  : "/receiver-dashboard"
-              )
-            }
+            onClick={() => navigate("/nearby-donors", {
+              state: { requestId }
+            })}
           >
-            Go to Dashboard
+            ← Go Back
           </button>
 
         </div>
