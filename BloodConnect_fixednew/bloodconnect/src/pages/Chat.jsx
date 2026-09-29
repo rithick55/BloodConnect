@@ -263,7 +263,7 @@ function Chat() {
 
         const response =
           await fetch(
-            `${API_URL}/chats/${requestId}`,
+            `${API_URL}/chat/${requestId}`,
             {
               signal:
                 controller.signal,
@@ -831,21 +831,17 @@ function Chat() {
   // TIME FORMAT
   // =========================================================
 
-  const formatTime =
-    (date) => {
-
-      return new Date(
-        date
-      ).toLocaleTimeString(
-        "en-IN",
-        {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        }
-      );
-
-    };
+const formatTime = (date) => {
+  return new Date(`${date}Z`).toLocaleTimeString(
+    "en-IN",
+    {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }
+  );
+};
 
 
   // =========================================================
